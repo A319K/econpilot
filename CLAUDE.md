@@ -92,6 +92,46 @@ tab opens → an in-app onboarding wizard collects everything else.
 When adding anything to the setup path, ask: *could a friend do this alone, on a
 laptop, without calling Aiden?* If not, it needs a different design.
 
+### Scope decisions (settled — don't reopen without Aiden)
+
+**Gmail auto-status tracking: out of scope.** Decided 2026-09-07. The idea was
+to read replies from employers and advance application status automatically.
+Rejected on accuracy, not effort: inferring "rejected" vs "interview" from email
+text is right most of the time, and a single misread silently corrupts the
+tracker the user is trusting. A quietly wrong pipeline is worse than a manual
+one. If it ever returns, it must *propose* status changes for one-click
+confirmation — never move an application on its own — matching the rule that
+the browser agent stops before submit. Google OAuth is also badly
+non-technical-hostile (each user creating a Cloud project and consent screen),
+which would undo the setup work, and it is a separate blocker from accuracy.
+
+**Per-job resume rewriting stays OFF.** `prepare_tailor_default` is `False` and
+that is the intended design, not a placeholder: Prepare selects the best-fit
+**pre-built base resume** (`backend/templates/resumes/`, keyed by `JobFamily`)
+and reuses its compiled PDF. Aiden's model is *2-3 role-specific resumes*, not a
+fresh one per application — regenerating every time produces inconsistent
+formatting and burns tokens for no gain. Per-job tailoring stays reachable via
+`tailor=true` on a single Prepare request. **When the econ pivot re-does
+`JobFamily`, the resume templates must be re-cut along the new families too** —
+they are keyed by it.
+
+**So the LLM's real job here is cover letters and agent form answers**, not
+resumes. That makes the spend small: Aiden can issue a dedicated OpenRouter key
+with a `limit` (per-key credit cap, optionally daily-resetting — verified in
+OpenRouter's provisioning docs 2026-09-07) and share that. It still goes in each
+user's `backend/.env` and is **never committed** — the repo is public, and keys
+in public repos get scraped and revoked.
+
+### Known gap: base resumes are LaTeX
+
+`backend/templates/resumes/*.tex` compile via `tectonic`. That is fine for
+Aiden and wrong for the audience — an econ major has a résumé in Word or PDF and
+will not write LaTeX or install a TeX engine. The natural fix is letting users
+**upload 2-3 finished PDFs** and tag each with a role family, which matches the
+pre-built-resume design exactly and drops LaTeX from the critical path. Note
+`ResumeVersion.latex_source` is currently `NOT NULL`, so this needs a migration
+plus an upload endpoint — it is real work, not a config flag.
+
 ## Architecture
 
 - `backend/` — FastAPI + SQLAlchemy + Alembic, SQLite (`backend/econpilot.db`, gitignored).
