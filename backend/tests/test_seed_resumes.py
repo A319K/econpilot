@@ -38,11 +38,11 @@ def test_upsert_resume_creates_new_base_template(monkeypatch):
     monkeypatch.setattr(seed_resumes, "compile_pdf", lambda source, name: "/fake/output.pdf")
 
     session = _session()
-    resume, created = upsert_resume(session, "swe", "Software Engineering Base", JobFamily.swe)
+    resume, created = upsert_resume(session, "consulting", "Consulting Base", JobFamily.consulting)
 
     assert created is True
     assert resume.is_base_template is True
-    assert resume.job_family == JobFamily.swe
+    assert resume.job_family == JobFamily.consulting
     assert resume.pdf_path == "/fake/output.pdf"
 
 
@@ -52,10 +52,10 @@ def test_upsert_resume_updates_existing_by_name(monkeypatch):
     monkeypatch.setattr(seed_resumes, "compile_pdf", lambda source, name: "/fake/output.pdf")
 
     session = _session()
-    upsert_resume(session, "swe", "Software Engineering Base", JobFamily.swe)
+    upsert_resume(session, "consulting", "Consulting Base", JobFamily.consulting)
     session.commit()
 
-    resume, created = upsert_resume(session, "swe", "Software Engineering Base", JobFamily.swe)
+    resume, created = upsert_resume(session, "consulting", "Consulting Base", JobFamily.consulting)
     session.commit()
 
     assert created is False

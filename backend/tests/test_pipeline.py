@@ -66,27 +66,52 @@ def test_classify_role_type_full_time():
     assert classify_role_type("Senior Software Engineer") == RoleType.full_time
 
 
-def test_classify_job_family_swe():
-    assert classify_job_family("Software Engineer Intern") == JobFamily.swe
+def test_classify_job_family_finance():
+    assert classify_job_family("Investment Banking Summer Analyst") == JobFamily.finance
+    assert classify_job_family("FP&A Analyst") == JobFamily.finance
 
 
-def test_classify_job_family_swe_extended_titles():
-    # Titles the user explicitly cares about that don't say "software engineer".
-    assert classify_job_family("Forward Deployed Engineer") == JobFamily.swe
-    assert classify_job_family("Security Engineer, Detection") == JobFamily.swe
-    assert classify_job_family("Solutions Engineer Intern") == JobFamily.swe
+def test_classify_job_family_consulting():
+    assert classify_job_family("Economic Consulting Analyst") == JobFamily.consulting
+    assert classify_job_family("Management Consultant") == JobFamily.consulting
 
 
-def test_classify_job_family_ml():
-    assert classify_job_family("Machine Learning Engineer") == JobFamily.ml
+def test_classify_job_family_data_analytics():
+    assert classify_job_family("Data Analyst Intern") == JobFamily.data_analytics
+    assert classify_job_family("Quantitative Analyst") == JobFamily.data_analytics
 
 
-def test_classify_job_family_data():
-    assert classify_job_family("Data Scientist Intern") == JobFamily.data
+def test_classify_job_family_corporate():
+    assert classify_job_family("Corporate Strategy Analyst") == JobFamily.corporate
+    assert classify_job_family("Leadership Development Program") == JobFamily.corporate
 
 
-def test_classify_job_family_cloud_infra():
-    assert classify_job_family("Site Reliability Engineer") == JobFamily.cloud_infra
+def test_classify_job_family_policy_research():
+    assert classify_job_family("Pre-Doctoral Research Assistant") == JobFamily.policy_research
+    assert classify_job_family("Policy Analyst") == JobFamily.policy_research
+
+
+def test_generic_title_requires_domain_evidence():
+    assert (
+        classify_job_family(
+            "Summer Associate",
+            "Join our case teams on client engagements in management consulting.",
+        )
+        == JobFamily.consulting
+    )
+    assert classify_job_family("Retail Associate", "Help customers at checkout") == JobFamily.other
+    assert classify_job_family("Research Assistant", "Support a biology laboratory") == JobFamily.other
+    assert (
+        classify_job_family("Research Assistant", "Study monetary policy at the Federal Reserve")
+        == JobFamily.policy_research
+    )
+
+
+def test_description_does_not_override_unrelated_title():
+    assert (
+        classify_job_family("Software Engineer", "Build financial modeling software")
+        == JobFamily.other
+    )
 
 
 def test_classify_job_family_other_when_no_match():
@@ -108,7 +133,7 @@ def test_compute_dedup_hash_matches_across_normalized_variants():
 def test_ingest_raw_job_creates_new_job_and_company():
     session = _session()
     raw = RawJob(
-        title="Software Engineer Intern",
+        title="Data Analyst Intern",
         url="https://boards.greenhouse.io/acme/jobs/1",
         location="San Francisco, CA",
         description="Join us",
@@ -123,14 +148,14 @@ def test_ingest_raw_job_creates_new_job_and_company():
     assert created is True
     assert job.company.name == "Acme Corp"
     assert job.role_type == RoleType.internship
-    assert job.job_family == JobFamily.swe
+    assert job.job_family == JobFamily.data_analytics
 
 
 def test_ingest_raw_job_dedup_collision_keeps_higher_ranked_source():
     session = _session()
 
     github_raw = RawJob(
-        title="Software Engineer Intern - Summer 2026",
+        title="Investment Banking Analyst - Summer 2026",
         url="https://simplify.jobs/p/aaa",
         location="San Francisco, CA",
         description="",
@@ -141,7 +166,7 @@ def test_ingest_raw_job_dedup_collision_keeps_higher_ranked_source():
     session.commit()
 
     greenhouse_raw = RawJob(
-        title="Software Engineer Intern - Summer 2026",
+        title="Investment Banking Analyst - Summer 2026",
         url="https://boards.greenhouse.io/acme/jobs/1",
         location="San Francisco, CA",
         description="Full job description from Greenhouse",

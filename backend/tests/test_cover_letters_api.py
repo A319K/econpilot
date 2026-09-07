@@ -22,7 +22,7 @@ def _make_cover_letter() -> int:
             url=f"https://example.com/cl-job-{company.id}",
             source=JobSource.manual,
             role_type=RoleType.internship,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             dedup_hash=f"clhash{company.id}",
         )
         db.add(job)

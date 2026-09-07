@@ -23,7 +23,7 @@ def test_create_resume_compiles_and_persists(monkeypatch):
         "/resumes",
         json={
             "name": "SWE Base",
-            "job_family": "swe",
+            "job_family": "consulting",
             "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}",
             "keywords": ["python"],
         },
@@ -45,7 +45,7 @@ def test_create_resume_returns_422_on_latex_error(monkeypatch):
 
     response = client.post(
         "/resumes",
-        json={"name": "Bad", "job_family": "swe", "latex_source": "\\bad{", "keywords": []},
+        json={"name": "Bad", "job_family": "consulting", "latex_source": "\\bad{", "keywords": []},
     )
     assert response.status_code == 422
 
@@ -60,7 +60,7 @@ def test_list_and_get_resume(monkeypatch):
 
     create_resp = client.post(
         "/resumes",
-        json={"name": "Data Base", "job_family": "data", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
+        json={"name": "Data Base", "job_family": "data_analytics", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
     )
     resume_id = create_resp.json()["id"]
 
@@ -78,7 +78,7 @@ def test_update_resume_recompiles_only_when_source_changes(monkeypatch):
 
     create_resp = client.post(
         "/resumes",
-        json={"name": "ML Base", "job_family": "ml", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
+        json={"name": "ML Base", "job_family": "finance", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
     )
     resume_id = create_resp.json()["id"]
     assert create_resp.json()["pdf_path"] == "/fake/v1.pdf"
@@ -103,7 +103,7 @@ def test_delete_resume_succeeds_when_unreferenced(monkeypatch):
 
     create_resp = client.post(
         "/resumes",
-        json={"name": "Cloud Base", "job_family": "cloud_infra", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
+        json={"name": "Cloud Base", "job_family": "policy_research", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
     )
     resume_id = create_resp.json()["id"]
 
@@ -119,7 +119,7 @@ def test_delete_resume_blocked_when_referenced_by_application(monkeypatch):
 
     create_resp = client.post(
         "/resumes",
-        json={"name": "Referenced Base", "job_family": "swe", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
+        json={"name": "Referenced Base", "job_family": "consulting", "latex_source": "\\documentclass{article}\\begin{document}x\\end{document}"},
     )
     resume_id = create_resp.json()["id"]
 
@@ -134,7 +134,7 @@ def test_delete_resume_blocked_when_referenced_by_application(monkeypatch):
             url="https://example.com/ref-job",
             source=JobSource.manual,
             role_type=RoleType.internship,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             dedup_hash="refhash",
         )
         db.add(job)

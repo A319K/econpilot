@@ -21,7 +21,7 @@ export function ResumeUpload({ onUploaded }: { onUploaded?: (resume: ResumeVersi
 
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState("")
-  const [jobFamily, setJobFamily] = useState<JobFamily>("data")
+  const [jobFamily, setJobFamily] = useState<JobFamily>("finance")
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

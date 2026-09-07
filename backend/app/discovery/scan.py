@@ -72,13 +72,9 @@ def _role_type_matches(raw: RawJob, role_type: str) -> bool:
     return role_type == "all" or _classify_raw_role_type(raw).value == role_type
 
 
-def _is_tech_noise(raw: RawJob) -> bool:
-    """Full-time roles that classify to the 'other' family are the non-tech bulk
-    (retail/finance/HR) big ATS tenants list alongside engineering. Internships
-    are always kept (low volume, and intern titles often under-classify)."""
-    if _classify_raw_role_type(raw) == RoleType.internship:
-        return False
-    return classify_job_family(raw.title) == JobFamily.other
+def _is_econ_noise(raw: RawJob) -> bool:
+    """Return True when a posting has no qualified economics role signal."""
+    return classify_job_family(raw.title, raw.description) == JobFamily.other
 
 
 def _freshness_cutoff(max_age_days: int | None) -> datetime | None:
@@ -140,12 +136,10 @@ async def run_scan(
     effective_max_age = settings.scan_max_age_days if max_age_days is None else max_age_days
     cutoff = _freshness_cutoff(effective_max_age)
 
-    # Internships are sourced entirely from the GitHub Simplify tracker below:
-    # it aggregates the same postings the company ATS sweep would find, but in a
-    # single cheap fetch instead of a 20+ minute per-tenant crawl. So an
-    # internship-only scan skips the ATS sweep (and the ATS auto-resolve that
-    # only serves it) and falls straight through to the GitHub source.
-    scan_ats = role_type != "internship"
+    # Econ internships are not covered reliably by the tech-oriented GitHub
+    # feeds, so every mode sweeps the configured employer ATS boards. Workday is
+    # excluded from _ATS_SOURCE_MAP, keeping this bounded to the keyless APIs.
+    scan_ats = True
 
     # Turn companies we only know by name into scannable ones by resolving their
     # ATS against the job-board APIs. Runs before the company query below so any
@@ -186,7 +180,7 @@ async def run_scan(
             report.jobs_found += 1
             if not _role_type_matches(raw, role_type):
                 continue
-            if settings.discovery_tech_only and _is_tech_noise(raw):
+            if settings.discovery_econ_only and _is_econ_noise(raw):
                 report.filtered += 1
                 continue
             if not _is_fresh(raw, cutoff):
@@ -217,6 +211,9 @@ async def run_scan(
             known_company = find_company(db, raw.company_name)
             if targets_only and (known_company is None or not known_company.is_target):
                 continue
+            if settings.discovery_econ_only and _is_econ_noise(raw):
+                report.filtered += 1
+                continue
             if not _is_fresh(raw, cutoff):
                 report.stale += 1
                 continue
@@ -243,9 +240,7 @@ async def run_scan(
             known_company = find_company(db, raw.company_name)
             if targets_only and (known_company is None or not known_company.is_target):
                 continue
-            # New-grad postings are full-time, so the tech-only noise filter
-            # applies the same way it does to ATS-sourced full-time roles.
-            if settings.discovery_tech_only and _is_tech_noise(raw):
+            if settings.discovery_econ_only and _is_econ_noise(raw):
                 report.filtered += 1
                 continue
             if not _is_fresh(raw, cutoff):

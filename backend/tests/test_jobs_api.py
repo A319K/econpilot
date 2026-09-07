@@ -99,14 +99,14 @@ def test_list_jobs_pagination():
 
 def test_scan_endpoint_with_mocked_sources(monkeypatch):
     from app.discovery.sources.greenhouse import GreenhouseSource
-    from app.discovery.sources.github_repo import GithubRepoSource
+    from app.discovery.sources.github_repo import GithubNewGradSource, GithubRepoSource
 
     company = _make_company(name="Scan Co", ats_type=AtsType.greenhouse, ats_board_id="scanco")
 
     async def fake_fetch(self, company):
         return [
             RawJob(
-                title="Software Engineer Intern",
+                title="Financial Analyst Intern",
                 url="https://boards.greenhouse.io/scanco/jobs/1",
                 location="Remote",
                 source=JobSource.greenhouse,
@@ -119,6 +119,7 @@ def test_scan_endpoint_with_mocked_sources(monkeypatch):
 
     monkeypatch.setattr(GreenhouseSource, "fetch", fake_fetch)
     monkeypatch.setattr(GithubRepoSource, "fetch", empty_fetch)
+    monkeypatch.setattr(GithubNewGradSource, "fetch", empty_fetch)
 
     response = client.post("/scan", json={"role_type": "all", "targets_only": False})
     assert response.status_code == 200
@@ -128,5 +129,5 @@ def test_scan_endpoint_with_mocked_sources(monkeypatch):
 
     jobs_resp = client.get("/jobs", params={"company_id": company.id})
     assert jobs_resp.status_code == 200
-    assert any(j["title"] == "Software Engineer Intern" for j in jobs_resp.json())
+    assert any(j["title"] == "Financial Analyst Intern" for j in jobs_resp.json())
     assert jobs_resp.json()[0]["score_breakdown"] is not None

@@ -34,7 +34,7 @@ def test_create_company_and_job():
         url="https://example.com/job/1",
         source=JobSource.greenhouse,
         role_type=RoleType.internship,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         dedup_hash="abc123",
     )
     session.add(job)
@@ -64,7 +64,7 @@ def test_application_resume_and_cover_letter_relationships():
     session.add(job)
     session.commit()
 
-    resume = ResumeVersion(name="base", job_family=JobFamily.swe, latex_source="\\documentclass{}")
+    resume = ResumeVersion(name="base", job_family=JobFamily.consulting, latex_source="\\documentclass{}")
     session.add(resume)
     session.commit()
 

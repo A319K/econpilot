@@ -42,7 +42,7 @@ def _job(**overrides) -> Job:
         url="https://example.com/1",
         source=JobSource.greenhouse,
         role_type=RoleType.internship,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         description="",
         posted_at=None,
         dedup_hash="hash",
@@ -127,11 +127,11 @@ def test_family_match_bonus_for_preferred_family(monkeypatch):
     from app.discovery import scoring as scoring_module
 
     settings = scoring_module.get_settings()
-    monkeypatch.setattr(settings, "preferred_job_families", ["swe"])
+    monkeypatch.setattr(settings, "preferred_job_families", ["consulting"])
     monkeypatch.setattr(scoring_module, "get_settings", lambda: settings)
 
     now = datetime.now(timezone.utc)
-    job = _job(job_family=JobFamily.swe, posted_at=now)
+    job = _job(job_family=JobFamily.consulting, posted_at=now)
     _, breakdown = score(job, _profile(), _company(), now=now)
     assert breakdown["family_match"] == 10.0
 
@@ -146,7 +146,7 @@ def test_total_score_sums_components():
         title="Python FastAPI Engineer",
         description="",
         posted_at=now - timedelta(hours=5),
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
     )
     profile = _profile()
     company = _company(is_target=True)

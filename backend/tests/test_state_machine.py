@@ -26,7 +26,7 @@ def _application(session, status=S.discovered) -> Application:
         url=f"https://example.com/{id(company)}",
         source=JobSource.manual,
         role_type=RoleType.internship,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         dedup_hash=f"h{id(company)}",
     )
     session.add(job)

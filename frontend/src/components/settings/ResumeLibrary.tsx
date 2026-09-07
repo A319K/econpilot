@@ -14,7 +14,7 @@ export function ResumeLibrary() {
   const updateResume = useUpdateResume()
   const [selected, setSelected] = useState<ResumeVersion | null>(null)
   const [draftSource, setDraftSource] = useState("")
-  const [draftFamily, setDraftFamily] = useState<JobFamily>("swe")
+  const [draftFamily, setDraftFamily] = useState<JobFamily>("finance")
   const [log, setLog] = useState<LogLine[]>([])
 
   function select(resume: ResumeVersion) {

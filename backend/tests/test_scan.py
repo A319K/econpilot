@@ -65,7 +65,7 @@ async def test_run_scan_ingests_jobs_from_ats_source(monkeypatch):
 
     raw_jobs = [
         RawJob(
-            title="Software Engineer Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/1",
             location="Remote",
             source=JobSource.greenhouse,
@@ -98,7 +98,7 @@ async def test_run_scan_records_source_errors_without_aborting(monkeypatch):
     _mock_fetch(monkeypatch, GreenhouseSource, error="503 Service Unavailable")
     raw_jobs = [
         RawJob(
-            title="Backend Engineer",
+            title="Financial Analyst",
             url="https://jobs.lever.co/good/1",
             source=JobSource.lever,
             company_name="Good Co",
@@ -126,13 +126,13 @@ async def test_run_scan_filters_by_role_type(monkeypatch):
 
     raw_jobs = [
         RawJob(
-            title="Senior Software Engineer",
+            title="Senior Financial Analyst",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",
         ),
         RawJob(
-            title="Software Engineer Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/2",
             source=JobSource.greenhouse,
             company_name="Acme",
@@ -149,11 +149,11 @@ async def test_run_scan_filters_by_role_type(monkeypatch):
     assert report.jobs_found == 2
     assert report.new == 1
     assert session.query(Job).count() == 1
-    assert session.query(Job).first().title == "Senior Software Engineer"
+    assert session.query(Job).first().title == "Senior Financial Analyst"
 
 
 @pytest.mark.asyncio
-async def test_run_scan_internship_sources_from_github_only(monkeypatch):
+async def test_run_scan_internship_uses_ats_and_github_sources(monkeypatch):
     from app.discovery.sources.github_repo import GithubRepoSource
     from app.discovery.sources.greenhouse import GreenhouseSource
 
@@ -161,11 +161,9 @@ async def test_run_scan_internship_sources_from_github_only(monkeypatch):
     session.add(Company(name="Acme", ats_type=AtsType.greenhouse, ats_board_id="acme"))
     session.commit()
 
-    # This ATS posting would be ingested if an internship scan swept the ATS
-    # sources - it must not be, so the assertions below expect it absent.
     ats_jobs = [
         RawJob(
-            title="Software Engineer Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",
@@ -176,7 +174,7 @@ async def test_run_scan_internship_sources_from_github_only(monkeypatch):
     async def _github(self, company):
         return [
             RawJob(
-                title="Backend Engineering Intern",
+                title="Data Analyst Intern",
                 url="https://example.com/gh-intern",
                 source=JobSource.github_repo,
                 company_name="Acme",
@@ -187,9 +185,12 @@ async def test_run_scan_internship_sources_from_github_only(monkeypatch):
 
     report = await run_scan(session, role_type="internship")
 
-    assert report.companies_scanned == 0  # ATS sweep skipped for internships
-    assert session.query(Job).count() == 1
-    assert session.query(Job).first().source == JobSource.github_repo
+    assert report.companies_scanned == 1
+    assert session.query(Job).count() == 2
+    assert {job.source for job in session.query(Job).all()} == {
+        JobSource.greenhouse,
+        JobSource.github_repo,
+    }
 
 
 @pytest.mark.asyncio
@@ -201,7 +202,7 @@ async def test_run_scan_newgrad_source_ingested_as_full_time(monkeypatch):
     async def _newgrad(self, company):
         return [
             RawJob(
-                title="Software Engineer, New Grad",
+                title="Financial Analyst, New Grad",
                 url="https://example.com/ng-swe",
                 source=JobSource.github_newgrad,
                 company_name="Acme",
@@ -226,7 +227,7 @@ async def test_run_scan_newgrad_source_ingested_as_full_time(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_run_scan_drops_fulltime_other_noise(monkeypatch):
+async def test_run_scan_drops_unclassified_noise_for_every_role_type(monkeypatch):
     from app.discovery.sources.greenhouse import GreenhouseSource
     from app.discovery.sources.github_repo import GithubRepoSource
 
@@ -235,19 +236,19 @@ async def test_run_scan_drops_fulltime_other_noise(monkeypatch):
     session.commit()
 
     raw_jobs = [
-        RawJob(  # full-time non-tech -> dropped as noise
+        RawJob(  # unrelated full-time role -> dropped
             title="Registered Nurse",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",
         ),
-        RawJob(  # full-time tech -> kept
-            title="Senior Software Engineer",
+        RawJob(  # classified econ role -> kept
+            title="Senior Financial Analyst",
             url="https://boards.greenhouse.io/acme/jobs/2",
             source=JobSource.greenhouse,
             company_name="Acme",
         ),
-        RawJob(  # internship, even non-tech family -> always kept
+        RawJob(  # unrelated internships are filtered too
             title="Marketing Intern",
             url="https://boards.greenhouse.io/acme/jobs/3",
             source=JobSource.greenhouse,
@@ -260,10 +261,10 @@ async def test_run_scan_drops_fulltime_other_noise(monkeypatch):
     report = await run_scan(session)
 
     assert report.jobs_found == 3
-    assert report.filtered == 1
-    assert report.new == 2
+    assert report.filtered == 2
+    assert report.new == 1
     titles = {j.title for j in session.query(Job).all()}
-    assert titles == {"Senior Software Engineer", "Marketing Intern"}
+    assert titles == {"Senior Financial Analyst"}
 
 
 @pytest.mark.asyncio
@@ -292,7 +293,7 @@ async def test_run_scan_includes_github_repo_jobs(monkeypatch):
     async def fetch(self, company):
         return [
             RawJob(
-                title="Software Engineer Intern",
+                title="Data Analyst Intern",
                 url="https://simplify.jobs/p/abc",
                 source=JobSource.github_repo,
                 company_name="New Startup",
@@ -323,21 +324,21 @@ async def test_run_scan_filters_stale_jobs_by_posted_at(monkeypatch):
     now = datetime.now(timezone.utc)
     raw_jobs = [
         RawJob(  # fresh: 5 days old -> kept
-            title="Software Engineer Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",
             posted_at=now - timedelta(days=5),
         ),
         RawJob(  # stale: 60 days old -> dropped
-            title="Backend Engineer Intern",
+            title="Consulting Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/2",
             source=JobSource.greenhouse,
             company_name="Acme",
             posted_at=now - timedelta(days=60),
         ),
         RawJob(  # undated -> kept (can't date it, so don't drop it)
-            title="Platform Engineer Intern",
+            title="Policy Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/3",
             source=JobSource.greenhouse,
             company_name="Acme",
@@ -352,7 +353,7 @@ async def test_run_scan_filters_stale_jobs_by_posted_at(monkeypatch):
     assert report.new == 2
     assert report.stale == 1
     titles = {j.title for j in session.query(Job).all()}
-    assert titles == {"Software Engineer Intern", "Platform Engineer Intern"}
+    assert titles == {"Financial Analyst Intern", "Policy Analyst Intern"}
 
 
 @pytest.mark.asyncio
@@ -368,7 +369,7 @@ async def test_run_scan_max_age_days_zero_disables_filter(monkeypatch):
 
     raw_jobs = [
         RawJob(
-            title="Software Engineer Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",

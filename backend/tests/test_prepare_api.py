@@ -33,7 +33,7 @@ def _make_job_with_base_resume(description="We need a Python engineer."):
             url=f"https://example.com/prep-job-{company.id}",
             source=JobSource.manual,
             role_type=RoleType.internship,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             description=description,
             dedup_hash=f"prephash{company.id}",
         )
@@ -41,7 +41,7 @@ def _make_job_with_base_resume(description="We need a Python engineer."):
         db.commit()
         resume = ResumeVersion(
             name="SWE Base",
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             latex_source=BASE_SOURCE,
             is_base_template=True,
             pdf_path="/fake/base.pdf",

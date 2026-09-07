@@ -36,7 +36,7 @@ def _job(session, company, role_type=RoleType.internship, discovered_at=None) ->
         url=f"https://example.com/{company.id}-{role_type.value}-{_job_counter}",
         source=JobSource.manual,
         role_type=role_type,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         dedup_hash=f"h{company.id}-{role_type.value}-{_job_counter}",
         discovered_at=discovered_at or utcnow(),
     )

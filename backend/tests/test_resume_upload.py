@@ -15,7 +15,7 @@ def _upload(content: bytes, filename: str = "resume.pdf", name: str = "Finance B
     return client.post(
         "/resumes/upload",
         files={"file": (filename, io.BytesIO(content), "application/pdf")},
-        data={"name": name, "job_family": "data"},
+        data={"name": name, "job_family": "data_analytics"},
     )
 
 
@@ -59,7 +59,7 @@ def test_blank_name_is_rejected():
     response = client.post(
         "/resumes/upload",
         files={"file": ("r.pdf", io.BytesIO(MINIMAL_PDF), "application/pdf")},
-        data={"name": "   ", "job_family": "data"},
+        data={"name": "   ", "job_family": "data_analytics"},
     )
     assert response.status_code == 422
 

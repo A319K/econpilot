@@ -203,7 +203,8 @@ case-insensitive; defaults are what you get if unset.
 | `GITHUB_REPO_BRANCH` | `dev` | Discovery | Branch to read. |
 | `GITHUB_REPO_LISTINGS_PATH` | `.github/scripts/listings.json` | Discovery | Structured feed (absolute dates, ATS urls). |
 | `GITHUB_ADDITIONAL_FEEDS` | `["vanshb03/…"]` | Discovery | Extra feeds merged in for redundancy/startups; JSON list of `owner/name/branch/path`. Failing feeds are skipped. |
-| `PREFERRED_JOB_FAMILIES` | `["swe","ml"]` | Scoring | JSON list; boosts scores. |
+| `PREFERRED_JOB_FAMILIES` | `["finance","consulting","policy_research"]` | Scoring | JSON list; boosts scores. |
+| `DISCOVERY_ECON_ONLY` | `true` | Discovery | Drops jobs without a qualified economics-role signal. |
 | `SCAN_CONCURRENCY` | `8` | Discovery | Concurrent per-company fetches. |
 | `SCAN_MAX_AGE_DAYS` | `21` | Discovery | Drop jobs posted older than N days at scan time; `0` disables, undated kept. |
 | `PREPARE_TAILOR_DEFAULT` | `false` | Materials | `false` = Prepare selects a pre-built base resume and reuses its PDF; `true` = rewrite a job-specific resume every time. |

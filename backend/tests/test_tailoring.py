@@ -42,7 +42,7 @@ def _job(session) -> Job:
         url="https://example.com/1",
         source=JobSource.greenhouse,
         role_type=RoleType.internship,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         dedup_hash="h1",
     )
     session.add(job)
@@ -53,7 +53,7 @@ def _job(session) -> Job:
 def _base_resume(session) -> ResumeVersion:
     resume = ResumeVersion(
         name="SWE Base",
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         latex_source=BASE_SOURCE,
         is_base_template=True,
         pdf_path="/fake/base.pdf",

@@ -38,7 +38,7 @@ def _setup_application(
             url=f"https://example.com/app-job-{n}",
             source=JobSource.manual,
             role_type=role_type,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             dedup_hash=f"apphash{n}",
             score=42.0,
         )
@@ -56,7 +56,7 @@ def _setup_application(
             # doesn't affect resume selection in other tests sharing this DB.
             resume = ResumeVersion(
                 name="Attached Resume",
-                job_family=JobFamily.swe,
+                job_family=JobFamily.consulting,
                 latex_source="\\documentclass{article}\\begin{document}x\\end{document}",
                 is_base_template=False,
                 pdf_path="/fake/resume.pdf",
@@ -240,7 +240,7 @@ def test_queue_job_creates_application_and_transitions_to_queued():
             url=f"https://example.com/queue-job-{n}",
             source=JobSource.manual,
             role_type=RoleType.internship,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             dedup_hash=f"queuehash{n}",
         )
         db.add(job)

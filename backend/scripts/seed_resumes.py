@@ -22,9 +22,11 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates" / "resumes"
 
 # filename (without .tex) -> (display name, job_family)
 TEMPLATES = {
-    "swe": ("Software Engineering Base", JobFamily.swe),
-    "data": ("Data Base", JobFamily.data),
-    "cloud_infra": ("Cloud/Infra Base", JobFamily.cloud_infra),
+    "finance": ("Finance Base", JobFamily.finance),
+    "consulting": ("Consulting Base", JobFamily.consulting),
+    "data_analytics": ("Data and Analytics Base", JobFamily.data_analytics),
+    "corporate": ("Corporate Base", JobFamily.corporate),
+    "policy_research": ("Policy and Research Base", JobFamily.policy_research),
 }
 
 

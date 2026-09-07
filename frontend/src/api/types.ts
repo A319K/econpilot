@@ -18,7 +18,14 @@ export type JobSource = (typeof JOB_SOURCES)[number]
 export const ROLE_TYPES = ["internship", "full_time"] as const
 export type RoleType = (typeof ROLE_TYPES)[number]
 
-export const JOB_FAMILIES = ["swe", "data", "cloud_infra", "ml", "other"] as const
+export const JOB_FAMILIES = [
+  "finance",
+  "consulting",
+  "data_analytics",
+  "corporate",
+  "policy_research",
+  "other",
+] as const
 export type JobFamily = (typeof JOB_FAMILIES)[number]
 
 export const APPLICATION_STATUSES = [

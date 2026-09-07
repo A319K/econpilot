@@ -26,7 +26,7 @@ def _job(session, **overrides) -> Job:
         url="https://example.com/1",
         source=JobSource.greenhouse,
         role_type=RoleType.internship,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         description="We need someone skilled in Python and AWS.",
         dedup_hash="h1",
     )

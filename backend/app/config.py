@@ -2,34 +2,124 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Job family classification keywords, checked in order against normalized job
-# titles (and description as a fallback). First match wins; "other" is the
-# default when nothing matches.
+# Strong title phrases, checked in order. These families are deliberately broad:
+# they select among a small library of resumes rather than trying to reproduce
+# every employer's org chart. Generic titles such as "analyst" are handled by
+# qualified domain signals in discovery.pipeline instead of matching alone.
 JOB_FAMILY_KEYWORDS: dict[str, list[str]] = {
-    "ml": ["machine learning", "ml engineer", "mle", "ai engineer", "deep learning", "nlp", "computer vision"],
-    "data": ["data engineer", "data scientist", "data analyst", "analytics engineer", "etl"],
-    "cloud_infra": [
-        "infrastructure",
-        "platform engineer",
-        "devops",
-        "site reliability",
-        "sre",
-        "cloud engineer",
-        "systems engineer",
+    "policy_research": [
+        "economist",
+        "economic analyst",
+        "policy analyst",
+        "economic research assistant",
+        "economic research associate",
+        "pre-doctoral",
+        "predoctoral",
+        "pre-doc",
+        "predoc",
     ],
-    "swe": [
-        "software engineer",
-        "software developer",
-        "swe",
-        "backend",
-        "frontend",
-        "full stack",
-        "full-stack",
-        "web developer",
-        "application developer",
-        "forward deployed",
-        "security engineer",
-        "solutions engineer",
+    "finance": [
+        "investment banking",
+        "investment analyst",
+        "financial analyst",
+        "finance analyst",
+        "equity research",
+        "credit research",
+        "asset management",
+        "portfolio analyst",
+        "wealth management",
+        "sales and trading",
+        "sales & trading",
+        "capital markets",
+        "risk analyst",
+        "treasury analyst",
+        "valuation analyst",
+        "fp&a",
+    ],
+    "consulting": [
+        "economic consultant",
+        "economic consulting",
+        "management consultant",
+        "strategy consultant",
+        "consulting analyst",
+        "consulting associate",
+        "business consultant",
+    ],
+    "data_analytics": [
+        "data analyst",
+        "business analyst",
+        "business intelligence",
+        "analytics analyst",
+        "quantitative analyst",
+        "quant analyst",
+        "quantitative researcher",
+        "pricing analyst",
+        "market research analyst",
+        "product analyst",
+        "operations analyst",
+    ],
+    "corporate": [
+        "corporate finance",
+        "corporate strategy",
+        "strategy analyst",
+        "commercial analyst",
+        "business operations",
+        "rotational program",
+        "rotation program",
+        "leadership development program",
+    ],
+}
+
+# Description evidence used only when a title is generic (analyst, associate,
+# research assistant, consultant, or intern). Requiring these signals prevents
+# unrelated roles such as laboratory assistants and retail associates from
+# entering the queue.
+JOB_FAMILY_DOMAIN_KEYWORDS: dict[str, list[str]] = {
+    "policy_research": [
+        "econometrics",
+        "microeconomics",
+        "macroeconomics",
+        "economic research",
+        "public policy",
+        "monetary policy",
+        "federal reserve",
+        "central bank",
+        "causal inference",
+    ],
+    "finance": [
+        "investment banking",
+        "asset management",
+        "capital markets",
+        "equity research",
+        "credit research",
+        "financial modeling",
+        "portfolio management",
+        "mergers and acquisitions",
+    ],
+    "consulting": [
+        "economic consulting",
+        "management consulting",
+        "client engagements",
+        "case teams",
+        "antitrust",
+        "litigation support",
+    ],
+    "data_analytics": [
+        "data analysis",
+        "statistical analysis",
+        "business intelligence",
+        "predictive modeling",
+        "sql",
+        "tableau",
+        "power bi",
+    ],
+    "corporate": [
+        "corporate strategy",
+        "business operations",
+        "strategic planning",
+        "leadership development",
+        "rotational program",
+        "commercial strategy",
     ],
 }
 
@@ -199,17 +289,13 @@ class Settings(BaseSettings):
     ]
 
     # Discovery: scoring
-    preferred_job_families: list[str] = ["swe", "ml"]
+    preferred_job_families: list[str] = ["finance", "consulting", "policy_research"]
     scan_concurrency: int = 8
 
-    # Discovery: keep the queue tech-focused. Large ATS tenants (esp. Workday)
-    # list every function -- retail, nursing, finance -- which floods the queue
-    # with roles you'd never apply to. When True (default), full-time jobs that
-    # classify to the "other" family are dropped at scan time. Every internship
-    # is always kept (low volume, and intern titles often under-classify), as is
-    # any full-time role in a tech family (swe/ml/data/cloud_infra). Set False to
-    # ingest everything.
-    discovery_tech_only: bool = True
+    # Large ATS tenants list every function. Keep only postings that classify to
+    # an economics-oriented family by default, for both internships and
+    # full-time roles. Set False to ingest unclassified roles as well.
+    discovery_econ_only: bool = True
 
     # Discovery: actively resolve unknown-ATS companies. Before each scan, probe
     # companies we know by name but not by ATS against the Greenhouse/Lever/Ashby

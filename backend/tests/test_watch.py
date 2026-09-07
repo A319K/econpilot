@@ -39,6 +39,15 @@ async def _empty(self=None, company=None):
     return []
 
 
+@pytest.fixture(autouse=True)
+def _stub_github_feeds(monkeypatch):
+    """Watcher tests must never depend on the live tech-oriented feeds."""
+    from app.discovery.sources.github_repo import GithubNewGradSource, GithubRepoSource
+
+    monkeypatch.setattr(GithubRepoSource, "fetch", _empty)
+    monkeypatch.setattr(GithubNewGradSource, "fetch", _empty)
+
+
 @pytest.mark.asyncio
 async def test_run_watch_scan_detects_new_vs_reseen(monkeypatch):
     from app.discovery.sources.github_repo import GithubRepoSource
@@ -53,7 +62,7 @@ async def test_run_watch_scan_detects_new_vs_reseen(monkeypatch):
 
     raw_jobs = [
         RawJob(
-            title="SWE Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",
@@ -83,7 +92,7 @@ async def test_deactivation_marks_vanished_ats_jobs_inactive(monkeypatch):
 
     raw_jobs = [
         RawJob(
-            title="SWE Intern",
+            title="Financial Analyst Intern",
             url="https://boards.greenhouse.io/acme/jobs/1",
             source=JobSource.greenhouse,
             company_name="Acme",
@@ -117,7 +126,7 @@ async def test_errored_company_is_never_deactivated(monkeypatch):
 
     raw_jobs = [
         RawJob(
-            title="Backend Engineer",
+            title="Financial Analyst",
             url="https://jobs.lever.co/flaky/1",
             source=JobSource.lever,
             company_name="Flaky Co",
@@ -151,7 +160,7 @@ async def test_github_sourced_jobs_are_exempt_from_deactivation(monkeypatch):
     async def fetch_present(self, company):
         return [
             RawJob(
-                title="SWE Intern",
+                title="Data Analyst Intern",
                 url="https://simplify.jobs/p/abc",
                 source=JobSource.github_repo,
                 company_name="New Startup",
@@ -186,7 +195,7 @@ def _job(session, company, title, score, source=JobSource.greenhouse):
         url=f"https://example.com/{title}",
         source=source,
         role_type=RoleType.full_time,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         score=score,
         dedup_hash=title,
     )

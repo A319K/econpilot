@@ -16,7 +16,7 @@ def _session():
     return sessionmaker(bind=engine)()
 
 
-def _job(session, job_family=JobFamily.swe) -> Job:
+def _job(session, job_family=JobFamily.consulting) -> Job:
     company = Company(name="Acme")
     session.add(company)
     session.commit()
@@ -61,7 +61,7 @@ async def test_select_resume_raises_when_no_base_templates_exist():
 async def test_select_resume_returns_sole_candidate_without_llm_call(monkeypatch):
     session = _session()
     job = _job(session)
-    resume = _resume(session, "SWE Base", JobFamily.swe)
+    resume = _resume(session, "SWE Base", JobFamily.consulting)
 
     async def fail(*args, **kwargs):
         raise AssertionError("LLM should not be called with a single candidate")
@@ -75,9 +75,9 @@ async def test_select_resume_returns_sole_candidate_without_llm_call(monkeypatch
 @pytest.mark.asyncio
 async def test_select_resume_filters_candidates_by_job_family():
     session = _session()
-    job = _job(session, job_family=JobFamily.data)
-    data_resume = _resume(session, "Data Base", JobFamily.data)
-    _resume(session, "SWE Base", JobFamily.swe)
+    job = _job(session, job_family=JobFamily.data_analytics)
+    data_resume = _resume(session, "Data Base", JobFamily.data_analytics)
+    _resume(session, "SWE Base", JobFamily.consulting)
 
     result = await select_resume(session, job, {})
     assert result.id == data_resume.id
@@ -86,8 +86,8 @@ async def test_select_resume_filters_candidates_by_job_family():
 @pytest.mark.asyncio
 async def test_select_resume_falls_back_to_all_base_templates_when_none_match_family():
     session = _session()
-    job = _job(session, job_family=JobFamily.cloud_infra)
-    swe_resume = _resume(session, "SWE Base", JobFamily.swe)
+    job = _job(session, job_family=JobFamily.policy_research)
+    swe_resume = _resume(session, "SWE Base", JobFamily.consulting)
 
     result = await select_resume(session, job, {})
     assert result.id == swe_resume.id
@@ -97,8 +97,8 @@ async def test_select_resume_falls_back_to_all_base_templates_when_none_match_fa
 async def test_select_resume_uses_llm_choice_when_valid(monkeypatch):
     session = _session()
     job = _job(session)
-    _resume(session, "Backend Focus", JobFamily.swe, keywords=["backend"])
-    frontend = _resume(session, "Frontend Focus", JobFamily.swe, keywords=["frontend"])
+    _resume(session, "Backend Focus", JobFamily.consulting, keywords=["backend"])
+    frontend = _resume(session, "Frontend Focus", JobFamily.consulting, keywords=["frontend"])
 
     async def fake_complete_json(system, user, schema_hint, **kwargs):
         return {"resume_id": frontend.id, "reasoning": "matches frontend keywords"}
@@ -113,8 +113,8 @@ async def test_select_resume_uses_llm_choice_when_valid(monkeypatch):
 async def test_select_resume_ignores_llm_choice_referencing_invalid_id(monkeypatch):
     session = _session()
     job = _job(session)
-    backend = _resume(session, "Backend Focus", JobFamily.swe, keywords=["backend", "api"])
-    _resume(session, "Frontend Focus", JobFamily.swe, keywords=["frontend", "react"])
+    backend = _resume(session, "Backend Focus", JobFamily.consulting, keywords=["backend", "api"])
+    _resume(session, "Frontend Focus", JobFamily.consulting, keywords=["frontend", "react"])
 
     async def fake_complete_json(system, user, schema_hint, **kwargs):
         return {"resume_id": 999999, "reasoning": "hallucinated id"}
@@ -131,8 +131,8 @@ async def test_select_resume_falls_back_on_llm_error(monkeypatch):
 
     session = _session()
     job = _job(session)
-    backend = _resume(session, "Backend Focus", JobFamily.swe, keywords=["backend"])
-    _resume(session, "Frontend Focus", JobFamily.swe, keywords=["frontend"])
+    backend = _resume(session, "Backend Focus", JobFamily.consulting, keywords=["backend"])
+    _resume(session, "Frontend Focus", JobFamily.consulting, keywords=["frontend"])
 
     async def fake_complete_json(system, user, schema_hint, **kwargs):
         raise LLMError("boom")
@@ -147,8 +147,8 @@ async def test_select_resume_falls_back_on_llm_error(monkeypatch):
 async def test_select_resume_fallback_is_deterministic_tie_break_by_lowest_id(monkeypatch):
     session = _session()
     job = _job(session)
-    first = _resume(session, "A", JobFamily.swe, keywords=["backend"])
-    _resume(session, "B", JobFamily.swe, keywords=["backend"])
+    first = _resume(session, "A", JobFamily.consulting, keywords=["backend"])
+    _resume(session, "B", JobFamily.consulting, keywords=["backend"])
 
     async def fake_complete_json(system, user, schema_hint, **kwargs):
         raise Exception("boom")

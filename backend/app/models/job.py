@@ -24,10 +24,11 @@ class RoleType(str, enum.Enum):
 
 
 class JobFamily(str, enum.Enum):
-    swe = "swe"
-    data = "data"
-    cloud_infra = "cloud_infra"
-    ml = "ml"
+    finance = "finance"
+    consulting = "consulting"
+    data_analytics = "data_analytics"
+    corporate = "corporate"
+    policy_research = "policy_research"
     other = "other"
 
 

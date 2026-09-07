@@ -4,7 +4,7 @@ import re
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.config import SOURCE_RANK, JOB_FAMILY_KEYWORDS
+from app.config import JOB_FAMILY_DOMAIN_KEYWORDS, JOB_FAMILY_KEYWORDS, SOURCE_RANK
 from app.discovery.ats_resolve import resolve_ats
 from app.discovery.base import RawJob
 from app.models.company import AtsType, Company
@@ -18,6 +18,11 @@ _SEASON_RE = re.compile(r"\b(summer|fall|winter|spring)\b")
 _INTERN_DASH_RE = re.compile(r"\bintern\s*-\s*")
 
 _INTERNSHIP_RE = re.compile(r"\b(intern|internship|co-?op)\b", re.IGNORECASE)
+_GENERIC_ECON_TITLE_RE = re.compile(
+    r"\b(analyst|associate|consultant|intern|internship|co-?op|research assistant|"
+    r"research associate|research analyst)\b",
+    re.IGNORECASE,
+)
 
 
 def normalize_title(title: str) -> str:
@@ -51,11 +56,27 @@ def classify_role_type(title: str) -> RoleType:
     return RoleType.internship if _INTERNSHIP_RE.search(title) else RoleType.full_time
 
 
-def classify_job_family(title: str) -> JobFamily:
+def _contains_phrase(text: str, phrase: str) -> bool:
+    return re.search(r"(?<!\w)" + re.escape(phrase.lower()) + r"(?!\w)", text.lower()) is not None
+
+
+def classify_job_family(title: str, description: str | None = None) -> JobFamily:
+    """Classify a posting into a resume-level economics role family.
+
+    Strong, specific title phrases win. Vague titles need a recognizable role
+    word plus domain evidence in the title or description; "associate" alone
+    must never be enough to admit a job into an econ-only scan.
+    """
     haystack = title.lower()
     for family, keywords in JOB_FAMILY_KEYWORDS.items():
-        if any(keyword in haystack for keyword in keywords):
+        if any(_contains_phrase(haystack, keyword) for keyword in keywords):
             return JobFamily(family)
+
+    if _GENERIC_ECON_TITLE_RE.search(title):
+        evidence = f"{title} {description or ''}".lower()
+        for family, keywords in JOB_FAMILY_DOMAIN_KEYWORDS.items():
+            if any(_contains_phrase(evidence, keyword) for keyword in keywords):
+                return JobFamily(family)
     return JobFamily.other
 
 
@@ -137,7 +158,7 @@ def ingest_raw_job(
         role_type = RoleType.full_time
     else:
         role_type = classify_role_type(raw.title)
-    job_family = classify_job_family(raw.title)
+    job_family = classify_job_family(raw.title, raw.description)
     dedup_hash = compute_dedup_hash(company.name, raw.title, raw.location)
 
     existing = db.query(Job).filter(Job.dedup_hash == dedup_hash).one_or_none()

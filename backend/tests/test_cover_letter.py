@@ -40,7 +40,7 @@ def _job_and_application(session):
         url="https://example.com/1",
         source=JobSource.greenhouse,
         role_type=RoleType.internship,
-        job_family=JobFamily.swe,
+        job_family=JobFamily.consulting,
         dedup_hash="h1",
     )
     session.add(job)

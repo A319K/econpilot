@@ -36,7 +36,7 @@ def _make_application(status=ApplicationStatus.in_progress, with_resume_pdf=True
             url=f"https://boards.greenhouse.io/agentco{n}/jobs/{n}",
             source=JobSource.greenhouse,
             role_type=RoleType.internship,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             dedup_hash=f"agenthash{n}",
             score=50.0,
         )
@@ -44,7 +44,7 @@ def _make_application(status=ApplicationStatus.in_progress, with_resume_pdf=True
         db.commit()
         resume = ResumeVersion(
             name=f"Resume {n}",
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             latex_source="x",
             pdf_path=f"/tmp/resume_{n}.pdf" if with_resume_pdf else None,
         )

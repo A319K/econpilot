@@ -20,7 +20,7 @@ def _make_job(jd_keywords=None) -> int:
             url=f"https://example.com/kw-job-{company.id}",
             source=JobSource.manual,
             role_type=RoleType.internship,
-            job_family=JobFamily.swe,
+            job_family=JobFamily.consulting,
             dedup_hash=f"kwhash{company.id}",
             jd_keywords=jd_keywords,
         )
