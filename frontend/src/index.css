@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Surfaces */
+  --color-bg: #0a0c0e;
+  --color-bg-panel: #0d1114;
+  --color-bg-raised: #12171b;
+  --color-bg-inset: #07090a;
+
+  /* Borders */
+  --color-border: #1e2629;
+  --color-border-dim: #161c1f;
+
+  /* Foreground */
+  --color-fg: #c7d1cb;
+  --color-fg-bright: #edf3ee;
+  --color-fg-dim: #6c7a75;
+  --color-fg-faint: #3f4a46;
+
+  /* Phosphor accent (green) - the one accent color, used sparingly */
+  --color-accent: #3ef08c;
+  --color-accent-dim: #1f8a54;
+  --color-accent-bg: #0f2419;
+
+  /* Semantic status palette, tuned to harmonize with the phosphor accent */
+  --color-status-discovered: #6c7a86;
+  --color-status-queued: #e2c17d;
+  --color-status-in-progress: #63aef2;
+  --color-status-ready: #d19a66;
+  --color-status-submitted: #59c2d8;
+  --color-status-oa: #8a91f5;
+  --color-status-interview: #c583e6;
+  --color-status-offer: #3ef08c;
+  --color-status-rejected: #ea6b74;
+  --color-status-withdrawn: #4c5559;
+
+  /* Score tiers */
+  --color-tier-high: #3ef08c;
+  --color-tier-mid: #e2c17d;
+  --color-tier-low: #6c7a86;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
+  }
+
+  ::selection {
+    background: var(--color-accent-dim);
+    color: var(--color-bg);
+  }
+
+  /* Visible keyboard focus everywhere - never suppressed */
+  :focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-bg);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-bg-raised);
+    border: 2px solid var(--color-bg);
+    border-radius: 0;
+  }
+}
+
+@layer utilities {
+  .glow-text {
+    text-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 55%, transparent);
+  }
+
+  .glow-border {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 0 10px color-mix(in oklab, var(--color-accent) 35%, transparent);
+  }
+
+  /* Static grain/scanline texture, capped at ~3% opacity, never animated */
+  .crt-texture {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    opacity: 0.03;
+    mix-blend-mode: overlay;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      #ffffff 0px,
+      #ffffff 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  animation: blink 1s step-start infinite;
+}

@@ -1,0 +1,52 @@
+# EconPilot — discovery / tracking / watcher services.
+#
+# This brings up the API, the dashboard, and the background watcher/scheduler.
+# The form-filling AGENT is intentionally NOT here: it needs a headed browser on
+# your desktop. Run it host-native (see the README "Docker" section for the
+# supported hybrid pattern: compose for services + agent from the host).
+#
+#   docker compose up --build      # dashboard at http://localhost:8080
+#
+# Seed companies once the stack is up:
+#   docker compose exec backend python scripts/seed_companies.py
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      # Optional: LLM key + notifier config. Pure discovery/tracking works
+      # without it (scoring is deterministic); materials + watcher need it.
+      - path: ./backend/.env
+        required: false
+    environment:
+      # Override any DATABASE_URL/OUTPUT_DIR from .env so data lands on the
+      # named volume rather than an ephemeral path inside the container.
+      DATABASE_URL: sqlite:////data/econpilot.db
+      OUTPUT_DIR: /data/output
+    volumes:
+      - econpilot-data:/data
+      # Your real profile (created by scripts/setup.py). Falls back to the
+      # bundled example if this file is absent.
+      - ./profile.yaml:/profile.yaml:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  econpilot-data:

@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "id": 4001,
+      "title": "Software Engineer Intern - Summer 2026",
+      "updated_at": "2026-06-01T10:00:00-04:00",
+      "location": { "name": "San Francisco, CA" },
+      "content": "<p>Join our team as a software engineer intern.</p>",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4001"
+    },
+    {
+      "id": 4002,
+      "title": "Senior Backend Engineer",
+      "updated_at": "2026-05-15T09:30:00-04:00",
+      "location": { "name": "Remote" },
+      "content": "<p>Full time backend role.</p>",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4002"
+    }
+  ]
+}

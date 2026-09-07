@@ -1,0 +1,23 @@
+# Build context is the repo root (for the backend image). Keep it small and
+# never ship local secrets, virtualenvs, node_modules, or the local database.
+.git/
+.github/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/*.egg-info/
+backend/.venv/
+backend/tests/
+frontend/node_modules/
+frontend/dist/
+**/*.db
+**/*.db-journal
+output/
+backend/output/
+browser_contexts/
+backend/browser_contexts/
+.env
+backend/.env
+frontend/.env.local
+profile.yaml
+companies.yaml

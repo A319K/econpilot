@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Fixture Application Form</title>
+</head>
+<body>
+  <h1>Apply: Software Engineering Intern</h1>
+
+  <!-- The agent must NEVER submit. If it ever does, this flag flips to true and
+       the integration test fails. preventDefault keeps the page from
+       navigating during the test. -->
+  <script>
+    window.__submitted = false;
+  </script>
+
+  <form id="apply" onsubmit="window.__submitted = true; return false;">
+    <label for="first_name">First Name</label>
+    <input type="text" id="first_name" name="first_name" required />
+
+    <label for="last_name">Last Name</label>
+    <input type="text" id="last_name" name="last_name" required />
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required />
+
+    <label for="phone">Phone</label>
+    <input type="tel" id="phone" name="phone" required />
+
+    <label for="linkedin">LinkedIn Profile</label>
+    <input type="url" id="linkedin" name="linkedin" />
+
+    <label for="resume">Resume/CV</label>
+    <input type="file" id="resume" name="resume" required />
+
+    <label for="gender">Gender</label>
+    <select id="gender" name="gender">
+      <option value="">Select...</option>
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+      <option value="decline">Decline To Self Identify</option>
+    </select>
+
+    <!-- Planted ambiguous, required field the deterministic mapper cannot
+         resolve; the (mocked) LLM answers it. -->
+    <label for="excites">What excites you about this role?</label>
+    <textarea id="excites" name="excites" required></textarea>
+
+    <button type="submit">Submit Application</button>
+  </form>
+</body>
+</html>

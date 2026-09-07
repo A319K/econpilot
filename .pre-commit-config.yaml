@@ -1,0 +1,26 @@
+# Pre-commit hooks for EconPilot. Opt-in; see CONTRIBUTING.md for setup.
+#
+#   pip install pre-commit
+#   pre-commit install            # run on every commit
+#   pre-commit run --all-files    # one-off scan of the whole tree
+#
+# The primary purpose here is secret scanning: EconPilot stores an LLM API key,
+# a Telegram bot token, and a personal profile locally, none of which should
+# ever be committed. gitleaks catches them before they leave your machine.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key

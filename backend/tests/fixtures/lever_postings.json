@@ -1,0 +1,18 @@
+[
+  {
+    "id": "abc-123",
+    "text": "Data Science Intern",
+    "categories": { "location": "New York, NY", "team": "Data", "commitment": "Intern" },
+    "descriptionPlain": "Work with our data science team over the summer.",
+    "hostedUrl": "https://jobs.lever.co/acme/abc-123",
+    "createdAt": 1780000000000
+  },
+  {
+    "id": "def-456",
+    "text": "Platform Engineer",
+    "categories": { "location": "Boston, MA", "team": "Infra", "commitment": "Full-time" },
+    "descriptionPlain": "Own our cloud infrastructure.",
+    "hostedUrl": "https://jobs.lever.co/acme/def-456",
+    "createdAt": 1779000000000
+  }
+]

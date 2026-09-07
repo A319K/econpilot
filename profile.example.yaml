@@ -1,0 +1,63 @@
+personal:
+  name: Jordan Example
+  email: jordan.example@school.edu
+  phone: "555-123-4567"
+  address: 123 Main St
+  city: Boston
+  state: MA
+  zip: "02115"
+  country: United States
+  linkedin: https://linkedin.com/in/jordan-example
+  github: https://github.com/jordan-example
+  website: https://jordanexample.dev
+
+education:
+  - school: Example University
+    degree: B.S.
+    major: Computer Science
+    gpa: 3.8
+    start: "2023-09"
+    end: "2027-05"
+
+work_experience:
+  - company: Acme Corp
+    title: Software Engineering Intern
+    start: "2025-06"
+    end: "2025-08"
+    bullets:
+      - Built an internal tool that reduced deploy time by 30%
+      - Wrote integration tests covering the payments service
+
+projects:
+  - name: EconPilot
+    description: Automation system for job/internship applications
+    url: https://github.com/jordan-example/econpilot
+    bullets:
+      - Designed a FastAPI + SQLAlchemy backend for tracking applications
+      - Built a provider-agnostic LLM client for resume tailoring
+
+skills:
+  languages:
+    - Python
+    - TypeScript
+    - SQL
+  frameworks:
+    - FastAPI
+    - React
+    - SQLAlchemy
+  tools:
+    - Docker
+    - Git
+    - PostgreSQL
+
+eeo_defaults:
+  gender: decline
+  ethnicity: decline
+  veteran: decline
+  disability: decline
+
+standard_answers:
+  work_authorization: "U.S. Citizen"
+  requires_sponsorship: false
+  willing_to_relocate: true
+  graduation_date: "2027-05"

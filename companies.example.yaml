@@ -1,0 +1,72 @@
+# Example seed list for scripts/seed_companies.py.
+# Every board id below was verified live against its real API on 2026-07-02.
+#
+# How to find a company's ATS board id:
+#   Greenhouse: visit the company's careers page; if it redirects to
+#     boards.greenhouse.io/<board_id> or job-boards.greenhouse.io/<board_id>,
+#     that slug is the board id.
+#   Lever: careers pages on Lever redirect to jobs.lever.co/<board_id>.
+#   Ashby: careers pages on Ashby redirect to jobs.ashbyhq.com/<board_id>.
+# Board ids occasionally change if a company migrates ATS providers --
+# verify against the live careers page before relying on this file.
+
+companies:
+  - name: Stripe
+    ats_type: greenhouse
+    ats_board_id: stripe
+    careers_url: https://stripe.com/jobs
+    is_target: true
+
+  - name: Airbnb
+    ats_type: greenhouse
+    ats_board_id: airbnb
+    careers_url: https://careers.airbnb.com
+    is_target: true
+
+  - name: Robinhood
+    ats_type: greenhouse
+    ats_board_id: robinhood
+    careers_url: https://careers.robinhood.com
+    is_target: false
+
+  - name: Coinbase
+    ats_type: greenhouse
+    ats_board_id: coinbase
+    careers_url: https://www.coinbase.com/careers
+    is_target: false
+
+  - name: DoorDash
+    ats_type: greenhouse
+    ats_board_id: doordashusa
+    careers_url: https://careers.doordash.com
+    is_target: false
+
+  - name: Affirm
+    ats_type: greenhouse
+    ats_board_id: affirm
+    careers_url: https://www.affirm.com/careers
+    is_target: false
+
+  - name: Brex
+    ats_type: greenhouse
+    ats_board_id: brex
+    careers_url: https://www.brex.com/careers
+    is_target: false
+
+  - name: Palantir
+    ats_type: lever
+    ats_board_id: palantir
+    careers_url: https://www.palantir.com/careers
+    is_target: true
+
+  - name: Ramp
+    ats_type: ashby
+    ats_board_id: ramp
+    careers_url: https://ramp.com/careers
+    is_target: true
+
+  - name: Netflix
+    ats_type: lever
+    ats_board_id: netflix
+    careers_url: https://jobs.netflix.com
+    is_target: false
