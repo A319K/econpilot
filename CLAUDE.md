@@ -132,6 +132,30 @@ pre-built-resume design exactly and drops LaTeX from the critical path. Note
 `ResumeVersion.latex_source` is currently `NOT NULL`, so this needs a migration
 plus an upload endpoint — it is real work, not a config flag.
 
+## Working alongside Codex
+
+`AGENTS.md` is Codex's entry point into this repo, and both tools commit to
+`main` at the same time. It defers to this file for everything about the
+project and adds the **lane ownership** split that keeps the two from editing
+the same files at once:
+
+- **Codex owns the pivot lane** — `app/config.py` role taxonomy,
+  `app/models/job.py` (`JobFamily`), `app/discovery/**`, `companies.example.yaml`,
+  `backend/templates/resumes/*.tex`.
+- **Claude Code owns the usability lane** — `frontend/**`, `app/routers/**`,
+  `app/schemas/**`, `app/profile.py`, `app/materials/uploads.py`, `README.md`,
+  `scripts/setup.py`, `docker-compose.yml`.
+- **Shared, coordinate first** — `CLAUDE.md`, `AGENTS.md`,
+  `app/materials/prepare.py`, `backend/pyproject.toml`.
+
+Two cross-lane traps: `JobFamily` also keys the resume templates *and*
+`frontend/src/api/types.ts` (`JOB_FAMILIES`), and `types.ts` is hand-synced with
+the backend schemas. Either change edits every side in one commit.
+
+`git pull --rebase` before starting and before pushing; never force-push. When
+this file changes in a way Codex must follow, update `AGENTS.md` in the same
+session.
+
 ## Architecture
 
 - `backend/` — FastAPI + SQLAlchemy + Alembic, SQLite (`backend/econpilot.db`, gitignored).
