@@ -11,8 +11,10 @@ class ResumeVersionRead(BaseModel):
     id: int
     name: str
     job_family: JobFamily
-    latex_source: str
+    latex_source: str | None
     pdf_path: str | None
+    original_filename: str | None
+    is_uploaded: bool
     is_base_template: bool
     parent_id: int | None
     keywords: list | None

@@ -7,6 +7,7 @@ import { type LogLine, ProgressLog } from "../ui/ProgressLog"
 import { Button } from "../ui/Button"
 import { EmptyState } from "../ui/EmptyState"
 import { formatTimestamp } from "../../lib/format"
+import { ResumeUpload } from "./ResumeUpload"
 
 export function ResumeLibrary() {
   const resumesQuery = useResumes()
@@ -18,7 +19,7 @@ export function ResumeLibrary() {
 
   function select(resume: ResumeVersion) {
     setSelected(resume)
-    setDraftSource(resume.latex_source)
+    setDraftSource(resume.latex_source ?? "")
     setDraftFamily(resume.job_family)
     setLog([])
   }
@@ -44,14 +45,17 @@ export function ResumeLibrary() {
   const resumes = resumesQuery.data ?? []
 
   return (
-    <div className="grid grid-cols-[1fr_2fr] gap-3">
+    <div className="flex flex-col gap-4">
+      <ResumeUpload onUploaded={select} />
+
+      <div className="grid grid-cols-[1fr_2fr] gap-3">
       <div className="flex flex-col gap-1.5">
         {resumesQuery.isLoading ? (
           <p className="text-(--color-fg-dim) text-xs">loading…</p>
         ) : resumes.length === 0 ? (
           <EmptyState
             title="No resumes yet"
-            hint="Run scripts/seed_resumes.py to load the placeholder templates."
+            hint="Drag a PDF into the box above to add your first one."
           />
         ) : (
           resumes.map((resume) => (
@@ -66,7 +70,7 @@ export function ResumeLibrary() {
             >
               <div className="truncate font-medium">{resume.name}</div>
               <div className="text-(--color-fg-dim)">
-                {resume.job_family} · {resume.is_base_template ? "base" : "tailored"}
+                {resume.job_family} · {resume.is_uploaded ? "uploaded PDF" : resume.is_base_template ? "base" : "tailored"}
               </div>
             </button>
           ))
@@ -95,21 +99,40 @@ export function ResumeLibrary() {
             </span>
           </div>
 
-          <textarea
-            value={draftSource}
-            onChange={(e) => setDraftSource(e.target.value)}
-            rows={16}
-            spellCheck={false}
-            className="border border-(--color-border) bg-(--color-bg-inset) text-(--color-fg) w-full resize-y p-2 font-mono text-xs leading-relaxed"
-          />
+          {selected.is_uploaded ? (
+            <div className="border border-(--color-border) px-3 py-4 text-xs">
+              <p className="text-(--color-fg-bright)">This is a PDF you uploaded.</p>
+              <p className="text-(--color-fg-dim) mt-1">
+                {selected.original_filename ?? "your file"} — it gets attached to applications exactly
+                as it is. To change it, edit the file on your computer and drag the new version in
+                above.
+              </p>
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={draftSource}
+                onChange={(e) => setDraftSource(e.target.value)}
+                rows={16}
+                spellCheck={false}
+                className="border border-(--color-border) bg-(--color-bg-inset) text-(--color-fg) w-full resize-y p-2 font-mono text-xs leading-relaxed"
+              />
 
-          <Button variant="primary" onClick={handleSave} disabled={updateResume.isPending} className="self-start">
-            {updateResume.isPending ? "compiling…" : "save & recompile"}
-          </Button>
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                disabled={updateResume.isPending}
+                className="self-start"
+              >
+                {updateResume.isPending ? "compiling…" : "save & recompile"}
+              </Button>
+            </>
+          )}
 
           {log.length > 0 && <ProgressLog lines={log} />}
         </div>
       )}
+      </div>
     </div>
   )
 }

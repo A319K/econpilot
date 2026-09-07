@@ -75,6 +75,12 @@ async def prepare_materials(
     tailored_flag = False
     regions_changed: list[str] = []
 
+    # An uploaded PDF has no source document to rewrite, so tailoring is simply
+    # not available for it. Skip rather than fail: the user still gets their
+    # resume attached, which is the whole point of uploading it.
+    if effective_tailor and base_resume.is_uploaded:
+        effective_tailor = False
+
     if effective_tailor:
         base_regions = parse_regions(base_resume.latex_source)
         llm_calls_made += len(base_regions)

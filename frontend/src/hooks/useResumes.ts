@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { resumesApi } from "../api/resumes"
-import type { ResumeVersionCreate, ResumeVersionUpdate } from "../api/types"
+import type { JobFamily, ResumeVersionCreate, ResumeVersionUpdate } from "../api/types"
 import { queryKeys } from "./queryKeys"
 
 export function useResumes() {
@@ -25,6 +25,17 @@ export function useUpdateResume() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: ResumeVersionUpdate }) =>
       resumesApi.update(id, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.resumes() })
+    },
+  })
+}
+
+export function useUploadResume() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ file, name, jobFamily }: { file: File; name: string; jobFamily: JobFamily }) =>
+      resumesApi.upload(file, name, jobFamily),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.resumes() })
     },

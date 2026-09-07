@@ -152,8 +152,11 @@ export interface ResumeVersion {
   id: number
   name: string
   job_family: JobFamily
-  latex_source: string
+  /** Null for a PDF the user uploaded — there is no source to compile. */
+  latex_source: string | null
   pdf_path: string | null
+  original_filename: string | null
+  is_uploaded: boolean
   is_base_template: boolean
   parent_id: number | null
   keywords: unknown[] | null

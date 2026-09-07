@@ -45,6 +45,21 @@ function buildQuery(params?: RequestOptions["params"]): string {
   return qs ? `?${qs}` : ""
 }
 
+/**
+ * POST multipart form data (file uploads). Kept separate from `request` because
+ * the browser must set its own multipart boundary — setting Content-Type here
+ * would corrupt the body.
+ */
+export async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", body: form })
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseErrorDetail(response))
+  }
+
+  return (await response.json()) as T
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, params } = options
   const url = `${API_BASE_URL}${path}${buildQuery(params)}`
