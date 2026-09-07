@@ -22,7 +22,7 @@ Prerequisites: **Python ≥ 3.11**, **Node ≥ 18**, and [`uv`](https://docs.ast
 
 ```bash
 # 1. Clone
-git clone https://github.com/A319K/job-pilot.git && cd job-pilot
+git clone https://github.com/A319K/econpilot.git && cd econpilot
 
 # 2. First-run setup (copies configs, runs migrations, seeds example companies)
 python scripts/setup.py

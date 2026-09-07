@@ -28,6 +28,59 @@ behavior as a thing to change (see "The pivot" below), not a thing to preserve.
 At the time of the fork the codebase still behaves tech-focused until that list
 is worked through.
 
+## Who this is for — and why that constrains every design choice
+
+**EconPilot is not being built for its author.** JobPilot was: a CS major running
+his own tooling, happy to edit YAML and keep two terminals open. EconPilot is
+being built **for Aiden's friends who are economics majors.** They use computers
+fine — they are not beginners at *computers*. What they are not fluent in is
+**developer vocabulary and developer workflow**: virtualenvs, terminals, YAML
+syntax, API keys, ports, "run migrations", "clone the repo".
+
+That single fact outranks feature work. A capability the user cannot reach
+without asking Aiden for help does not count as shipped.
+
+**The standing rules that follow from it:**
+
+- **Configuration belongs in the UI, not in files.** Anything a user must
+  personalize — their profile, their target companies, their resume, their API
+  key — must be editable from a screen in the app. Editing `profile.yaml` or
+  `companies.yaml` in a text editor is an *Aiden-only* path. The YAML files stay
+  as the storage format and the seed/defaults mechanism; they stop being the
+  interface.
+- **Every error message is user-facing copy.** Assume it will be read by someone
+  who cannot interpret a stack trace and will not open a log file. Say what went
+  wrong and what to do next, in plain language, in the UI.
+- **Terminal steps are a budget, not a free resource.** The target is one
+  command (or a double-clickable script) to start, and zero after that. Every
+  additional step in the README is a place a friend gets stuck and gives up.
+- **Nothing that requires a paid signup can gate the core loop.** Discovery,
+  scoring, and tracking are deterministic and work with no LLM key — that path
+  must stay fully usable and must be the default. Materials generation and the
+  agent are the upgrade, clearly marked as needing a key.
+- **Assume no LaTeX, no Chromium, no `tectonic`.** Anything requiring a heavy
+  local toolchain must degrade gracefully to a working fallback, never to a
+  crash or a blank screen.
+- **Jargon in the interface is a bug.** "ATS", "scan", "pipeline", "seed" are
+  internal words. User-visible copy uses the words an econ student would use.
+
+### Distribution
+
+The plan is **give them the repo**, not host it — decided 2026-09-07. Hosting is
+a much larger change than it looks: it needs multi-user auth and data isolation
+(none exists — the DB is single-user by construction), it would put their resumes
+and contact details on someone else's server, and **the browser agent
+fundamentally cannot be hosted** — it drives a headed browser on the user's own
+desktop so they can watch it and click submit themselves.
+
+So the target experience is a **local app that installs easily**, not a website.
+`docker-compose.yml` already runs the API + dashboard as one command and is the
+most promising base for this. Optimize toward: download → one step → a browser
+tab opens → an in-app onboarding wizard collects everything else.
+
+When adding anything to the setup path, ask: *could a friend do this alone, on a
+laptop, without calling Aiden?* If not, it needs a different design.
+
 ## Architecture
 
 - `backend/` — FastAPI + SQLAlchemy + Alembic, SQLite (`backend/econpilot.db`, gitignored).
