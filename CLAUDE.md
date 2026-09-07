@@ -145,6 +145,24 @@ cd ../frontend && npm install
   currently OpenRouter). Discovery and scoring work without it; Prepare/agent need it.
 - Commits go directly to `main` (solo repo). `pre-commit` runs gitleaks + hygiene hooks.
 
+### Git remote & commit cadence (not optional)
+
+The remote is **`origin` = https://github.com/A319K/econpilot.git**, and it is a
+**public** repo. Two consequences:
+
+- **Commit and push as you go.** Every logical unit of work ends with a commit
+  on `main` and a `git push`. Do not batch a whole session into one giant commit,
+  and do not leave the session with unpushed commits or a dirty tree — the
+  remote is the backup, and `~/Documents` is iCloud-synced, not versioned.
+  Message style: imperative subject describing the change ("Re-target discovery
+  keywords to econ role families"), matching the existing history.
+- **Public repo — nothing personal goes in.** `.gitignore` already excludes
+  `.env`, `companies.yaml`, `profile.yaml`, `*.db`, `output/`, and `/Resume.pdf`.
+  Before adding any new file that holds a key, a real company roster, resume
+  text, or anything with Aiden's name/contact in it, ignore it instead of
+  committing it. `pre-commit`'s gitleaks hook is the second line of defense, not
+  the first.
+
 ---
 
 ## Master-agent protocol (applies to Claude Code AND Codex)
