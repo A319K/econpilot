@@ -13,10 +13,24 @@ def test_health():
     assert body["db"] == "ok"
 
 
-def test_profile_omits_eeo_defaults():
+def test_profile_exposes_eeo_defaults_for_editing():
+    """EEO defaults are part of the profile the dashboard edits.
+
+    JobPilot deliberately omitted these from /profile (data minimisation — the
+    dashboard only ever displayed the profile, so demographics never needed to
+    cross the API boundary). EconPilot's Profile page *edits* profile.yaml, so
+    they have to round-trip: our users are non-technical and must not be sent
+    to a text editor for the one section covering race, disability and veteran
+    status. Still localhost-only, single-user, and already on the user's disk.
+    """
     response = client.get("/profile")
     assert response.status_code == 200
-    assert "eeo_defaults" not in response.json()
+    assert "eeo_defaults" in response.json()
+
+
+def test_profile_reports_placeholder_state():
+    body = client.get("/profile").json()
+    assert isinstance(body["is_placeholder"], bool)
 
 
 def test_company_crud():

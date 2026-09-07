@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/queue", label: "QUEUE" },
   { to: "/pipeline", label: "PIPELINE" },
   { to: "/stats", label: "STATS" },
+  { to: "/profile", label: "PROFILE" },
   { to: "/settings", label: "SETTINGS" },
 ]
 

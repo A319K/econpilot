@@ -396,3 +396,79 @@ export interface NotifyTestResult {
   success: boolean
   adapter: string
 }
+
+// --- profile (backend/app/schemas/profile.py + backend/app/profile.py) ------
+
+export interface ProfilePersonal {
+  name: string
+  email: string
+  phone: string
+  city: string
+  state: string
+  address: string | null
+  zip: string | null
+  country: string | null
+  linkedin: string | null
+  github: string | null
+  website: string | null
+}
+
+export interface ProfileEducation {
+  school: string
+  degree: string
+  major: string
+  gpa: number | null
+  start: string
+  end: string
+}
+
+export interface ProfileWorkExperience {
+  company: string
+  title: string
+  start: string
+  end: string
+  bullets: string[]
+}
+
+export interface ProfileProject {
+  name: string
+  description: string | null
+  bullets: string[]
+  url: string | null
+}
+
+export interface ProfileSkills {
+  languages: string[]
+  frameworks: string[]
+  tools: string[]
+}
+
+export interface ProfileEeoDefaults {
+  gender: string | null
+  ethnicity: string | null
+  veteran: string | null
+  disability: string | null
+}
+
+export interface ProfileStandardAnswers {
+  work_authorization: string
+  requires_sponsorship: boolean
+  willing_to_relocate: boolean
+  graduation_date: string
+}
+
+/** The editable document. `PUT /profile` replaces the whole thing. */
+export interface ProfileWrite {
+  personal: ProfilePersonal
+  education: ProfileEducation[]
+  work_experience: ProfileWorkExperience[]
+  projects: ProfileProject[]
+  skills: ProfileSkills
+  eeo_defaults: ProfileEeoDefaults
+  standard_answers: ProfileStandardAnswers
+}
+
+export interface Profile extends ProfileWrite {
+  /** True while profile.yaml is absent and the bundled example stands in. */
+  is_placeholder: boolean
+}

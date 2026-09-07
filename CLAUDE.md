@@ -48,12 +48,23 @@ without asking Aiden for help does not count as shipped.
   `companies.yaml` in a text editor is an *Aiden-only* path. The YAML files stay
   as the storage format and the seed/defaults mechanism; they stop being the
   interface.
+
+  **The Profile page is the reference implementation of this pattern** (added
+  2026-09-07): `GET`/`PUT /profile` read and atomically rewrite `profile.yaml`,
+  `ProfilePage.tsx` renders it as a real form, and `is_placeholder` on the read
+  response drives a banner telling the user the example data isn't them yet.
+  Copy that shape — file stays the storage, screen becomes the interface, and
+  the API reports when a config is still un-personalized — when moving
+  `companies.yaml` or the LLM key into the app.
 - **Every error message is user-facing copy.** Assume it will be read by someone
   who cannot interpret a stack trace and will not open a log file. Say what went
   wrong and what to do next, in plain language, in the UI.
-- **Terminal steps are a budget, not a free resource.** The target is one
-  command (or a double-clickable script) to start, and zero after that. Every
-  additional step in the README is a place a friend gets stuck and gives up.
+- **The terminal is fine; the text editor is not.** Calibrated by Aiden
+  2026-09-07: a friend can open Terminal, paste a command, and keep two windows
+  running. What they should never have to do is open a code editor to hand-edit
+  a config file. So README commands can be copy-pasteable blocks — but they must
+  be *complete* (including installing the prerequisites) and pasteable without
+  understanding them. Explain what a step is for, never what it means.
 - **Nothing that requires a paid signup can gate the core loop.** Discovery,
   scoring, and tracking are deterministic and work with no LLM key — that path
   must stay fully usable and must be the default. Materials generation and the

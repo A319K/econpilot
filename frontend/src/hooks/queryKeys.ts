@@ -12,5 +12,6 @@ export const queryKeys = {
   agentRun: (id: number) => ["agent-runs", id] as const,
   answerBank: () => ["answer-bank"] as const,
   health: () => ["health"] as const,
+  profile: () => ["profile"] as const,
   watcherStatus: () => ["watcher-status"] as const,
 }

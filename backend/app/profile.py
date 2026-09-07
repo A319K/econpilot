@@ -1,3 +1,5 @@
+import os
+import tempfile
 import warnings
 from functools import lru_cache
 from pathlib import Path
@@ -77,6 +79,15 @@ class Profile(BaseModel):
     standard_answers: StandardAnswers
 
 
+def profile_is_placeholder() -> bool:
+    """True when no real profile.yaml exists and the example is standing in.
+
+    The dashboard uses this to prompt the user to fill in their details rather
+    than silently generating applications for "Jordan Example".
+    """
+    return not PROFILE_PATH.exists()
+
+
 @lru_cache
 def get_profile() -> Profile:
     path = PROFILE_PATH
@@ -91,3 +102,35 @@ def get_profile() -> Profile:
         raw = yaml.safe_load(f)
 
     return Profile.model_validate(raw)
+
+
+def save_profile(profile: Profile) -> Profile:
+    """Write `profile` to profile.yaml and invalidate the read cache.
+
+    Written atomically (temp file in the same directory + os.replace) so an
+    interrupted save can never leave a half-written profile behind — the old
+    file survives instead. Always targets PROFILE_PATH; the bundled example is
+    never overwritten.
+    """
+    payload = profile.model_dump(mode="json", exclude_none=True)
+
+    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(PROFILE_PATH.parent), prefix=".profile.", suffix=".yaml.tmp"
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.safe_dump(payload, f, sort_keys=False, allow_unicode=True, default_flow_style=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, PROFILE_PATH)
+    except BaseException:
+        # Leave no stray temp file behind if the write or replace failed.
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+    get_profile.cache_clear()
+    return get_profile()

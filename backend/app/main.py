@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.db import SessionLocal
-from app.profile import get_profile
+from app.profile import get_profile, profile_is_placeholder, save_profile
 from app.routers.agent_runs import router as agent_runs_router
 from app.routers.answer_bank import router as answer_bank_router
 from app.routers.applications import router as applications_router
@@ -18,7 +18,7 @@ from app.routers.resumes import router as resumes_router
 from app.routers.scan import router as scan_router
 from app.routers.stats import router as stats_router
 from app.routers.watcher import router as watcher_router
-from app.schemas.profile import ProfileRead
+from app.schemas.profile import ProfileRead, ProfileWrite
 from app.watcher.scheduler import get_watcher_service
 
 
@@ -72,4 +72,16 @@ def health():
 
 @app.get("/profile", response_model=ProfileRead)
 def read_profile():
-    return ProfileRead.from_profile(get_profile())
+    return ProfileRead.from_profile(get_profile(), is_placeholder=profile_is_placeholder())
+
+
+@app.put("/profile", response_model=ProfileRead)
+def write_profile(payload: ProfileWrite):
+    """Replace profile.yaml with `payload`.
+
+    This is how the dashboard's Profile page saves, so that filling in your
+    details never requires opening a text editor. Validation errors come back
+    as a 422 the page renders inline.
+    """
+    saved = save_profile(payload.to_profile())
+    return ProfileRead.from_profile(saved, is_placeholder=profile_is_placeholder())

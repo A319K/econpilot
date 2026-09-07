@@ -15,38 +15,133 @@ what you choose to send to your configured LLM provider.
 
 ---
 
-## Quickstart (native)
+## Setup
 
-Prerequisites: **Python ≥ 3.11**, **Node ≥ 18**, and [`uv`](https://docs.astral.sh/uv/)
-(or plain `pip`). Optional: `tectonic` for PDF compilation, Chromium for the agent.
+You'll use the Terminal app for the install steps and to start EconPilot. You can
+copy and paste every command below — you don't need to know what they do.
+
+### 1. Install the things EconPilot needs
+
+**On a Mac.** First install Homebrew, which is the tool that installs the rest.
+Paste this into Terminal and follow its prompts:
 
 ```bash
-# 1. Clone
-git clone https://github.com/A319K/econpilot.git && cd econpilot
-
-# 2. First-run setup (copies configs, runs migrations, seeds example companies)
-python scripts/setup.py
-
-# 3. Install + start the backend  (http://localhost:8000)
-cd backend
-uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/uvicorn app.main:app --reload
-
-# 4. Install + start the frontend, in a second terminal  (http://localhost:5173)
-cd frontend && npm install && npm run dev
-
-# 5. Seed base resumes (compiles the 3 LaTeX templates; needs tectonic)
-cd backend && .venv/bin/python scripts/seed_resumes.py
-
-# 6. Open http://localhost:5173 and click SCAN on the queue.
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-That's the whole loop: **scan** to populate the queue, **queue** a job you like,
-**prepare** to generate tailored materials, then track it through the pipeline —
-and optionally **autofill** the employer's form.
+When it finishes, it may print two `eval` lines under "Next steps" — paste those
+in too, then close and reopen Terminal. Now install everything else:
 
-If you skipped the LLM key in step 2, add it to `backend/.env` (`LLM_API_KEY=`)
-before using Prepare or the agent. Scoring and discovery work without it.
+```bash
+brew install git python@3.12 node uv
+```
+
+**On Windows.** Open PowerShell and paste:
+
+```powershell
+winget install --id Git.Git --id Python.Python.3.12 --id OpenJS.NodeJS --id astral-sh.uv
+```
+
+Then close and reopen PowerShell so the new commands are available.
+
+### 2. Download EconPilot
+
+```bash
+git clone https://github.com/A319K/econpilot.git
+cd econpilot
+```
+
+Everything from here on assumes you're inside that `econpilot` folder. If you
+open a fresh Terminal later, `cd econpilot` again first.
+
+### 3. Set it up
+
+```bash
+python3 scripts/setup.py
+```
+
+This creates your config files and sets up the database. It will ask a few
+questions — pressing Enter takes the safe default for each, which is fine.
+
+### 4. Install the two halves
+
+```bash
+cd backend && uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python && cd ..
+cd frontend && npm install && cd ..
+```
+
+This one takes a few minutes. It only has to happen once.
+
+### 5. Start it up
+
+EconPilot runs as two programs at once, so it needs **two Terminal windows**.
+Open a second window with `Cmd-N` (Mac) or `Ctrl-N` (Windows), and `cd econpilot`
+in it.
+
+In the **first** window:
+
+```bash
+cd backend && .venv/bin/uvicorn app.main:app --reload
+```
+
+In the **second** window:
+
+```bash
+cd frontend && npm run dev
+```
+
+Leave both running — closing a window stops that half. Then open
+**http://localhost:5173** in your browser.
+
+### 6. Fill in your profile
+
+Click **PROFILE** in the left sidebar and enter your details — name, school,
+experience, the standard application questions. Hit **save profile**. You don't
+need to edit any files by hand; the page writes `profile.yaml` for you.
+
+Then go to **QUEUE** and click **SCAN** to pull in jobs.
+
+---
+
+## Starting it again later
+
+After the first setup, starting EconPilot is just the two commands from step 5,
+in two Terminal windows, from inside the `econpilot` folder:
+
+```bash
+cd backend && .venv/bin/uvicorn app.main:app --reload   # window 1
+cd frontend && npm run dev                              # window 2
+```
+
+---
+
+## Optional extras
+
+None of these are needed to find and track jobs.
+
+- **Tailored resumes and cover letters** need an LLM API key. Put it in
+  `backend/.env` as `LLM_API_KEY=...` (get one from
+  [OpenRouter](https://openrouter.ai)). Finding, scoring, and tracking jobs all
+  work without it — scoring is a plain calculation, not an AI call.
+- **PDF resume compilation** needs `tectonic` (`brew install tectonic`), then:
+  ```bash
+  cd backend && .venv/bin/python scripts/seed_resumes.py
+  ```
+- **The form-filling agent** needs Chromium. See "The application agent" below.
+
+---
+
+## If something goes wrong
+
+- **`command not found`** for `brew`, `git`, `uv`, or `npm` — close Terminal,
+  open a fresh window, and try again. Newly installed commands only show up in
+  new windows.
+- **The page won't load at localhost:5173** — check that both Terminal windows
+  are still running without errors. Both have to stay open.
+- **The dashboard loads but says it can't reach the backend** — the first window
+  (the `uvicorn` one) has stopped or errored. Restart it.
+- **`port already in use`** — EconPilot is already running in another window.
+  Either use that one, or stop it with `Ctrl-C` before starting again.
 
 ---
 
@@ -78,6 +173,11 @@ setup. The sqlite DB and generated PDFs live on the `econpilot-data` volume; you
 ---
 
 ## Configuration reference
+
+**Your own details live on the PROFILE page in the dashboard** — name, school,
+experience, skills, and the standard application questions. Saving there writes
+`profile.yaml` for you, so there's no need to edit that file by hand. The
+settings below are separate: they configure the *system*, not you.
 
 All settings are environment variables (via `backend/.env`). Names are
 case-insensitive; defaults are what you get if unset.
