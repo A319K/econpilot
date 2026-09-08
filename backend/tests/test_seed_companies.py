@@ -21,27 +21,39 @@ def test_load_companies_from_example_file():
     entries = load_companies(EXAMPLE_PATH)
     assert len(entries) >= 10
     assert all("name" in e and "ats_type" in e for e in entries)
+    assert any(e["name"] == "The Brattle Group" for e in entries)
+    assert any(e["name"] == "Federal Reserve Board" for e in entries)
 
 
 def test_upsert_company_creates_new():
     session = _session()
-    entry = {"name": "Stripe", "ats_type": "greenhouse", "ats_board_id": "stripe", "is_target": True}
+    entry = {
+        "name": "The Brattle Group",
+        "ats_type": "greenhouse",
+        "ats_board_id": "thebrattlegroup",
+        "is_target": True,
+    }
 
     company, created = upsert_company(session, entry)
     session.commit()
 
     assert created is True
     assert company.ats_type == AtsType.greenhouse
-    assert company.ats_board_id == "stripe"
+    assert company.ats_board_id == "thebrattlegroup"
     assert company.is_target is True
 
 
 def test_upsert_company_updates_existing_case_insensitive():
     session = _session()
-    session.add(Company(name="stripe", ats_type=AtsType.unknown))
+    session.add(Company(name="the brattle group", ats_type=AtsType.unknown))
     session.commit()
 
-    entry = {"name": "Stripe", "ats_type": "greenhouse", "ats_board_id": "stripe", "is_target": True}
+    entry = {
+        "name": "The Brattle Group",
+        "ats_type": "greenhouse",
+        "ats_board_id": "thebrattlegroup",
+        "is_target": True,
+    }
     company, created = upsert_company(session, entry)
     session.commit()
 
@@ -59,5 +71,5 @@ def test_seed_example_file_end_to_end():
     session.commit()
 
     assert session.query(Company).count() == len(entries)
-    stripe = session.query(Company).filter(Company.name == "Stripe").one()
-    assert stripe.ats_type == AtsType.greenhouse
+    brattle = session.query(Company).filter(Company.name == "The Brattle Group").one()
+    assert brattle.ats_type == AtsType.greenhouse

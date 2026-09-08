@@ -31,7 +31,7 @@ reaching across.
 
 **Codex owns the pivot lane — the econ re-targeting:**
 
-- `backend/app/config.py` — role taxonomy, keyword/title logic, `discovery_tech_only`
+- `backend/app/config.py` — role taxonomy, keyword/title logic, `discovery_econ_only`
 - `backend/app/models/job.py` — the `JobFamily` enum
 - `backend/app/discovery/` — `scoring.py`, `pipeline.py`, `sources/`
 - `companies.example.yaml` — the seed employer roster
@@ -57,6 +57,138 @@ reaching across.
 - **`frontend/src/api/types.ts` is hand-synced with `backend/app/schemas/*`.**
   There is no codegen. An API shape change edits both sides in the same commit.
 
+## Current handoff — 2026-09-08 (Claude Code → Codex)
+
+Your 2026-09-07 handoff is preserved below under "What landed on 2026-09-07".
+Read it — nothing in it is stale. This section is what to do next.
+
+Housekeeping done for you on 2026-09-08 so you can start on code:
+
+- Your 2026-09-07 session is now logged in
+  `~/Documents/.agent/log/sessions.jsonl` (backdated, marked as logged
+  retroactively by Claude Code — you never ran checkout).
+- `~/Documents/.agent/projects/econpilot.md` was rewritten. It had still said
+  "just forked, next step: re-target the taxonomy," which you'd already done.
+  It now carries the real status, next step, and the three live blockers.
+
+Nothing was committed on your behalf and nothing in your lane was edited. Your
+three uncommitted files are untouched — `companies.example.yaml`,
+`backend/tests/test_seed_companies.py`, and this `AGENTS.md` (this section is the
+only change to it). Preserve them through any pull or cleanup.
+
+### 1. Land the roster unit — first, before anything else
+
+It is finished and verified; only the commit failed. Do not redo the work.
+
+```bash
+git status --short          # expect exactly the three files above
+git pull --rebase
+cd backend && .venv/bin/pytest -m "not latex and not agent"
+git add companies.example.yaml backend/tests/test_seed_companies.py AGENTS.md
+git commit -m "Seed an economics-oriented employer roster"
+git push
+```
+
+If iCloud stalls git again on offloaded `.git/objects`, that is the known
+blocker, not a new bug. Two ways through, in order of preference:
+
+- **Move the repo off iCloud** — `mv ~/Documents/econpilot ~/Developer/econpilot`
+  (`mv`/`cp -a` on the whole directory, never by dragging contents in Finder;
+  `.git`, `.claude` and dotfiles do not survive a ⌘A drag). Then commit from the
+  new path. Update `dir:` in `~/Documents/.agent/projects/econpilot.md` if you do.
+  **Ask Aiden before moving it** — the master agent's map in
+  `~/Documents/CLAUDE.md` points at `econpilot/` and would need updating too.
+- **Or** `Keep Downloaded` on the repo folder to force objects local, then retry.
+  This unsticks the commit but is not a fix; the move is.
+
+If neither works, stop and report rather than force-adding or re-cloning.
+
+### 2. Retune scoring for econ — the main work
+
+`backend/app/discovery/scoring.py` still weights software-engineering signals.
+Re-tune around what actually predicts fit for an econ major:
+
+- **Coursework** — econometrics, statistics, macro/micro theory, financial
+  accounting, calculus/linear algebra.
+- **Quant & finance skills** — Stata, R, Python (pandas), SQL, Excel modeling,
+  valuation/DCF, Bloomberg. Note Excel is a *real* positive signal here in a way
+  it never was for SWE.
+- **Target-role fit** — how well the posting's `JobFamily` matches the user's
+  stated targets in `profile.yaml`.
+- **Relevant experience** — internships in finance/consulting/research, RA work,
+  case-competition and investment-club signals.
+
+Two things to respect while you do it. Scoring must keep working with **no LLM
+key** — it is part of the deterministic core loop that has to stay usable
+without a paid signup. And expect the noise the taxonomy work already found:
+"analyst" and "associate" are everywhere, so the score should reward domain
+evidence rather than assume the classifier caught everything.
+
+### 3. Then, in order
+
+- Replace or disable the inherited Simplify tech feeds once an econ-specific
+  internship/new-grad source exists. Until then they stay supplemental and
+  filtered, which is the current state — don't remove them without a
+  replacement, or internship scans lose coverage.
+- Add sources for the high-value unscannable paths: **USAJOBS** (federal
+  Economist, GS-0110), **Federal Reserve RA** postings, **NBER**/EconJobMarket
+  pre-docs, and **Workday**-hosted banks and consulting firms. Model the first
+  three on the existing `github_repo` source client — a non-ATS source feeding
+  the same pipeline. Workday is the hard one: it needs following a careers-page
+  redirect to discover the `host|site` coordinate, which is why those 7 roster
+  entries sit at `unknown`. Treat it as its own unit, last.
+
+### What Claude Code is doing meanwhile
+
+Usability lane only — PDF résumé upload to replace the LaTeX templates on the
+critical path (needs a migration; `ResumeVersion.latex_source` is `NOT NULL`),
+moving `companies.yaml` and the LLM key into the UI following the Profile page
+pattern, and the one-step install path. **The PDF-upload work will touch how
+resumes are keyed by `JobFamily`** — the same cross-lane trap flagged above. If
+you change `JobFamily` again, say so in your session log before you start.
+
+### What landed on 2026-09-07
+
+Codex completed and pushed the first economics-pivot unit in commit `0e51d4e`
+(`Re-target job taxonomy to economics roles`):
+
+- Replaced the tech `JobFamily` values with `finance`, `consulting`,
+  `data_analytics`, `corporate`, `policy_research`, and `other`.
+- Added qualified econ-role classification. Strong title phrases match directly;
+  generic titles such as analyst, associate, intern, or research assistant need
+  domain evidence from the title or description. Unrelated engineering, retail,
+  nursing, and marketing roles remain `other`.
+- Replaced `discovery_tech_only` with `discovery_econ_only`. The default filter
+  now applies to internships as well as full-time jobs.
+- Restored ATS sweeps for internship scans. The inherited GitHub internship feed
+  is tech-oriented and is supplemental only; it is filtered through the same
+  econ classifier.
+- Added Alembic migration `a7b8c9d0e1f2`, synchronized
+  `frontend/src/api/types.ts`, updated resume upload defaults and seed logic, and
+  replaced the three tech LaTeX examples with five econ-family examples.
+- Verification passed: 499 supported backend tests, TypeScript typecheck, 23
+  frontend tests, lint with five pre-existing warnings, and migration
+  upgrade/downgrade/upgrade including legacy-value conversion.
+
+Codex also prepared the next roster unit in the working tree, but it is **not
+committed yet** because iCloud repeatedly stalled Git while reading offloaded
+`.git/objects` files:
+
+- `companies.example.yaml` now contains 18 economics-oriented employers: 11
+  directly scannable Greenhouse/Ashby boards and 7 high-value targets awaiting
+  Workday/custom-source support.
+- All 11 configured ATS board ids returned HTTP 200 from their official APIs on
+  2026-09-07, and `backend/tests/test_seed_companies.py` passes (4 tests).
+- The only uncommitted files should be `companies.example.yaml`,
+  `backend/tests/test_seed_companies.py`, and this `AGENTS.md` handoff. Preserve
+  them; do not overwrite them during a pull or cleanup.
+
+Operational note: this repository currently lives under iCloud-synced
+`~/Documents`. Active Git repositories should instead live in a local working
+directory such as `~/Developer`, with GitHub for committed source and Time
+Machine for uncommitted/private state. `Keep Downloaded` reduces iCloud stalls
+but is not a backup.
+
 ## Git
 
 The remote is `origin` → https://github.com/A319K/econpilot (**public**).
@@ -75,7 +207,7 @@ The remote is `origin` → https://github.com/A319K/econpilot (**public**).
 ## Verify before you commit
 
 ```bash
-cd backend && .venv/bin/pytest -m "not latex and not agent"   # 497 passing
+cd backend && .venv/bin/pytest -m "not latex and not agent"   # 499 passing
 cd frontend && npx tsc --noEmit -p tsconfig.app.json && npm run test -- --run && npm run lint
 ```
 
@@ -128,4 +260,4 @@ landed.
 
 ---
 
-*Last updated 2026-09-07.*
+*Last updated 2026-09-08.*

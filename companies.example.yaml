@@ -1,44 +1,59 @@
-# Example seed list for scripts/seed_companies.py.
-# Every board id below was verified live against its real API on 2026-07-02.
+# Example employer roster for economics-degree roles.
 #
-# How to find a company's ATS board id:
-#   Greenhouse: visit the company's careers page; if it redirects to
-#     boards.greenhouse.io/<board_id> or job-boards.greenhouse.io/<board_id>,
-#     that slug is the board id.
-#   Lever: careers pages on Lever redirect to jobs.lever.co/<board_id>.
-#   Ashby: careers pages on Ashby redirect to jobs.ashbyhq.com/<board_id>.
-# Board ids occasionally change if a company migrates ATS providers --
-# verify against the live careers page before relying on this file.
+# Greenhouse and Ashby board ids below were verified against live job-board
+# pages on 2026-09-07. Entries marked unknown are valuable target employers but
+# use career systems EconPilot cannot scan yet; they remain visible so users can
+# keep them in their personalized roster as source support expands.
 
 companies:
+  # Economic consulting -- directly scannable today.
+  - name: The Brattle Group
+    ats_type: greenhouse
+    ats_board_id: thebrattlegroup
+    careers_url: https://www.brattle.com/careers/
+    is_target: true
+
+  - name: Charles River Associates
+    ats_type: greenhouse
+    ats_board_id: charlesriverassociates
+    careers_url: https://www.crai.com/careers/
+    is_target: true
+
+  - name: Coherent Economics
+    ats_type: greenhouse
+    ats_board_id: coherenteconomicsllc
+    careers_url: https://coherentecon.com/careers/
+    is_target: true
+
+  - name: Integra FEC
+    ats_type: greenhouse
+    ats_board_id: integra
+    careers_url: https://integrafec.com/careers/
+    is_target: true
+
+  # Investment, finance, and quantitative research.
+  - name: Point72
+    ats_type: greenhouse
+    ats_board_id: point72
+    careers_url: https://point72.com/careers/
+    is_target: true
+
   - name: Stripe
     ats_type: greenhouse
     ats_board_id: stripe
     careers_url: https://stripe.com/jobs
-    is_target: true
+    is_target: false
 
   - name: Airbnb
     ats_type: greenhouse
     ats_board_id: airbnb
-    careers_url: https://careers.airbnb.com
-    is_target: true
+    careers_url: https://careers.airbnb.com/
+    is_target: false
 
   - name: Robinhood
     ats_type: greenhouse
     ats_board_id: robinhood
-    careers_url: https://careers.robinhood.com
-    is_target: false
-
-  - name: Coinbase
-    ats_type: greenhouse
-    ats_board_id: coinbase
-    careers_url: https://www.coinbase.com/careers
-    is_target: false
-
-  - name: DoorDash
-    ats_type: greenhouse
-    ats_board_id: doordashusa
-    careers_url: https://careers.doordash.com
+    careers_url: https://careers.robinhood.com/
     is_target: false
 
   - name: Affirm
@@ -47,26 +62,51 @@ companies:
     careers_url: https://www.affirm.com/careers
     is_target: false
 
-  - name: Brex
-    ats_type: greenhouse
-    ats_board_id: brex
-    careers_url: https://www.brex.com/careers
-    is_target: false
-
-  - name: Palantir
-    ats_type: lever
-    ats_board_id: palantir
-    careers_url: https://www.palantir.com/careers
-    is_target: true
-
   - name: Ramp
     ats_type: ashby
     ats_board_id: ramp
     careers_url: https://ramp.com/careers
+    is_target: false
+
+  # Economic research, policy, and journalism.
+  - name: The Economist Group
+    ats_type: greenhouse
+    ats_board_id: theeconomistgroup
+    careers_url: https://www.economistgroup.com/careers
+    is_target: false
+
+  # High-value targets awaiting Workday/custom-source support.
+  - name: Analysis Group
+    ats_type: unknown
+    careers_url: https://www.analysisgroup.com/careers/
     is_target: true
 
-  - name: Netflix
-    ats_type: lever
-    ats_board_id: netflix
-    careers_url: https://jobs.netflix.com
+  - name: Cornerstone Research
+    ats_type: unknown
+    careers_url: https://www.cornerstone.com/careers/
+    is_target: true
+
+  - name: NERA Economic Consulting
+    ats_type: unknown
+    careers_url: https://www.nera.com/careers.html
+    is_target: true
+
+  - name: Federal Reserve Board
+    ats_type: unknown
+    careers_url: https://www.federalreserve.gov/careers.htm
+    is_target: true
+
+  - name: Brookings Institution
+    ats_type: unknown
+    careers_url: https://www.brookings.edu/careers/
     is_target: false
+
+  - name: RAND
+    ats_type: unknown
+    careers_url: https://www.rand.org/jobs.html
+    is_target: false
+
+  - name: National Bureau of Economic Research
+    ats_type: unknown
+    careers_url: https://www.nber.org/career-resources
+    is_target: true
