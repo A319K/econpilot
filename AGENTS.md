@@ -70,8 +70,10 @@ single scan shared one timestamp and the queue's age column came out scrambled.
 It now orders by `coalesce(posted_at, discovered_at)` — what the column actually
 renders. Two tests in `backend/tests/test_jobs_api.py`. Suite is 506 passing.
 
-**This handoff changes your next step.** You logged `--next` as the USAJOBS
-adapter. That work is still wanted, but it drops to item 2 — read item 1 first.
+**Codex completion update, 2026-09-09.** Item 1 shipped as `158929f` and item 2
+shipped as `7fc2ae8`; both are pushed. Aiden then declined the AEA JOE import,
+so do not build its parser, endpoint, or screen. Workday tenant resolution is
+the next discovery unit.
 
 ### The problem this handoff is about
 
@@ -98,13 +100,12 @@ We are not copying that. Two reasons, both binding:
 - **Scraping LinkedIn/Indeed/Glassdoor is against their terms** and gets
   IP-blocked quickly. A funded company absorbs that risk; software Aiden hands
   to friends must not. Official APIs and published files only. If a source's
-  terms prohibit automated collection, the integration is a **user-initiated
-  import**, not a crawler — see AEA JOE below.
+  terms prohibit automated collection, do not add a crawler.
 
 So the goal is to flip discovery from *"companies I have listed"* toward
 *"roles matching my search"*, using sources that permit it.
 
-### 1. Tenant enumeration — do this first
+### 1. Tenant enumeration — complete (`158929f`)
 
 The largest recall multiplier available on code that already exists.
 `app/discovery/ats_probe.py` already resolves a company name to a
@@ -128,7 +129,7 @@ Design notes:
 - Report progress. A multi-minute probe with no output reads as a hang to a
   non-technical user, and every error message is user-facing copy (CLAUDE.md).
 
-### 2. USAJOBS — your original next step, unchanged
+### 2. USAJOBS — complete (`7fc2ae8`)
 
 A real public API, and the front door for federal Economist (GS-0110), BLS, BEA,
 CBO. Model it on the `github_repo` client: a non-ATS source feeding the same
@@ -136,25 +137,12 @@ normalize/dedup/score pipeline. Your logged plan — adapter contract plus
 fixtures in `backend/app/discovery/sources/`, then pipeline integration — is
 right; just do it after item 1.
 
-### 3. AEA JOE — the highest-signal econ source, via import not crawl
+### AEA JOE — declined by Aiden, 2026-09-09
 
-**Job Openings for Economists** (`aeaweb.org/joe/listings`) is *the* economics
-job market: ~1,700 positions filled a year, and the main channel for pre-docs and
-academic-adjacent roles. For an econ-major audience this is more on-target than
-any general board.
+Do not add JOE listings to the job-search feature. No JOE code was implemented
+or committed, so there is nothing to remove.
 
-**The AEA prohibits scraping or redistributing site content**, but publishes
-current listings as a downloadable XLS. So the integration is: the user downloads
-the file and imports it. That respects the terms, fits local-first, and needs no
-credentials.
-
-This one is **cross-lane**. Yours is the parser and the mapping from JOE rows
-into `RawJob` so it flows through the existing pipeline. The upload endpoint and
-the screen are Claude Code's (`app/routers/`, `frontend/`). Define the `RawJob`
-mapping and say so in your session log; Claude Code will build the intake around
-it.
-
-### 4. Workday tenant resolution
+### 3. Workday tenant resolution — next
 
 Unblocks the 7 `unknown` roster entries and most banks and consulting firms —
 the highest ceiling for finance roles specifically, and the hardest item here.
@@ -162,7 +150,7 @@ Needs following a careers-page redirect to recover the `host|site` coordinate,
 which cannot be derived from a company name. Treat it as its own unit and take
 it last of these four.
 
-### 5. Only if the above is not enough: keyword-queryable aggregators
+### 4. Only if the above is not enough: keyword-queryable aggregators
 
 Adzuna has a documented API; Google Jobs is reachable via SerpAPI. These are the
 real shape-change — search-driven rather than roster-driven. Held back to last
@@ -189,7 +177,7 @@ postings is a worse outcome than the narrow queue we have now.
 Usability lane — PDF résumé upload to get LaTeX off the critical path (needs a
 migration; `ResumeVersion.latex_source` is `NOT NULL`), moving `companies.yaml`
 and the LLM key into the UI on the Profile page pattern, the one-step install
-path, and the JOE import screen once you have defined the mapping in item 3.
+path. Do not build the previously planned JOE import screen.
 
 ### Earlier history
 
@@ -207,7 +195,8 @@ were re-cut alongside it.
 
 `fb4c01f` (2026-09-08) seeded the econ roster: 18 employers, 11 scannable
 Greenhouse/Ashby boards verified HTTP 200 on 2026-09-07, 7 high-value
-Workday/custom targets left `unknown` so they stay visible until item 4 lands.
+Workday/custom targets left `unknown` so they stay visible until Workday tenant
+resolution lands.
 
 Operational note, still true: this repository lives under iCloud-synced
 `~/Documents`, which stalled Git on offloaded `.git/objects` during the
