@@ -57,137 +57,163 @@ reaching across.
 - **`frontend/src/api/types.ts` is hand-synced with `backend/app/schemas/*`.**
   There is no codegen. An API shape change edits both sides in the same commit.
 
-## Current handoff — 2026-09-08 (Claude Code → Codex)
+## Current handoff — 2026-09-09 (Claude Code → Codex)
 
-Your 2026-09-07 handoff is preserved below under "What landed on 2026-09-07".
-Read it — nothing in it is stale. This section is what to do next.
+Your 2026-09-08 run landed both units from the previous handoff — roster
+(`fb4c01f`) and econ scoring (`9ee09ef`, a 100-point score over skill overlap,
+coursework fit, family-qualified experience, preferred family, target employer,
+and recency). You logged the session properly. Nothing is outstanding from it.
 
-Housekeeping done for you on 2026-09-08 so you can start on code:
+Claude Code shipped one fix in the usability lane on 2026-09-09, `5a434ae`:
+`sort=recent` on `GET /jobs` ordered by `discovered_at`, so every job from a
+single scan shared one timestamp and the queue's age column came out scrambled.
+It now orders by `coalesce(posted_at, discovered_at)` — what the column actually
+renders. Two tests in `backend/tests/test_jobs_api.py`. Suite is 506 passing.
 
-- Your 2026-09-07 session is now logged in
-  `~/Documents/.agent/log/sessions.jsonl` (backdated, marked as logged
-  retroactively by Claude Code — you never ran checkout).
-- `~/Documents/.agent/projects/econpilot.md` was rewritten. It had still said
-  "just forked, next step: re-target the taxonomy," which you'd already done.
-  It now carries the real status, next step, and the three live blockers.
+**This handoff changes your next step.** You logged `--next` as the USAJOBS
+adapter. That work is still wanted, but it drops to item 2 — read item 1 first.
 
-Nothing was committed on your behalf and nothing in your lane was edited. Your
-three uncommitted files are untouched — `companies.example.yaml`,
-`backend/tests/test_seed_companies.py`, and this `AGENTS.md` (this section is the
-only change to it). Preserve them through any pull or cleanup.
+### The problem this handoff is about
 
-### 1. Land the roster unit — first, before anything else
+Aiden's assessment on 2026-09-09: discovery is too narrow. Not wrong — narrow.
+The queue does not surface enough for it to be worth opening.
 
-It is finished and verified; only the commit failed. Do not redo the work.
+The cause is structural, so adding companies one at a time will not fix it.
+**EconPilot is roster-bound**: it scans only companies present in
+`companies.yaml` *and* carrying a resolved ATS. That is 11 scannable boards
+today, so the ceiling on recall is the roster, and raising the ceiling is linear
+manual work forever.
 
-```bash
-git status --short          # expect exactly the three files above
-git pull --rebase
-cd backend && .venv/bin/pytest -m "not latex and not agent"
-git add companies.example.yaml backend/tests/test_seed_companies.py AGENTS.md
-git commit -m "Seed an economics-oriented employer roster"
-git push
-```
+For contrast, jobright.ai aggregates ~8M listings and ~400k new postings a day
+from career sites and the big boards, refreshed every few minutes, and is
+explicitly a **matching-and-autofill layer over aggregated listings rather than
+a job board**. Recall comes free in that model; precision and ghost-listing
+filtering are the hard parts.
 
-If iCloud stalls git again on offloaded `.git/objects`, that is the known
-blocker, not a new bug. Two ways through, in order of preference:
+We are not copying that. Two reasons, both binding:
 
-- **Move the repo off iCloud** — `mv ~/Documents/econpilot ~/Developer/econpilot`
-  (`mv`/`cp -a` on the whole directory, never by dragging contents in Finder;
-  `.git`, `.claude` and dotfiles do not survive a ⌘A drag). Then commit from the
-  new path. Update `dir:` in `~/Documents/.agent/projects/econpilot.md` if you do.
-  **Ask Aiden before moving it** — the master agent's map in
-  `~/Documents/CLAUDE.md` points at `econpilot/` and would need updating too.
-- **Or** `Keep Downloaded` on the repo folder to force objects local, then retry.
-  This unsticks the commit but is not a fix; the move is.
+- **EconPilot is local-first.** It runs on a friend's laptop. It cannot host an
+  8M-row corpus, and it should not try. What it needs is good *recall on econ
+  roles*, not coverage of the labor market.
+- **Scraping LinkedIn/Indeed/Glassdoor is against their terms** and gets
+  IP-blocked quickly. A funded company absorbs that risk; software Aiden hands
+  to friends must not. Official APIs and published files only. If a source's
+  terms prohibit automated collection, the integration is a **user-initiated
+  import**, not a crawler — see AEA JOE below.
 
-If neither works, stop and report rather than force-adding or re-cloning.
+So the goal is to flip discovery from *"companies I have listed"* toward
+*"roles matching my search"*, using sources that permit it.
 
-### 2. Retune scoring for econ — the main work
+### 1. Tenant enumeration — do this first
 
-`backend/app/discovery/scoring.py` still weights software-engineering signals.
-Re-tune around what actually predicts fit for an econ major:
+The largest recall multiplier available on code that already exists.
+`app/discovery/ats_probe.py` already resolves a company name to a
+Greenhouse/Lever/Ashby board by slug. Today it runs over a hand-written roster.
+Point it at a large employer list instead and let it discover boards wholesale:
+econ-consulting directories, asset managers, the Fortune/Forbes rosters, think
+tanks. Board tokens are public and slug-guessable, which is the whole reason the
+probe works.
 
-- **Coursework** — econometrics, statistics, macro/micro theory, financial
-  accounting, calculus/linear algebra.
-- **Quant & finance skills** — Stata, R, Python (pandas), SQL, Excel modeling,
-  valuation/DCF, Bloomberg. Note Excel is a *real* positive signal here in a way
-  it never was for SWE.
-- **Target-role fit** — how well the posting's `JobFamily` matches the user's
-  stated targets in `profile.yaml`.
-- **Relevant experience** — internships in finance/consulting/research, RA work,
-  case-competition and investment-club signals.
+Design notes:
 
-Two things to respect while you do it. Scoring must keep working with **no LLM
-key** — it is part of the deterministic core loop that has to stay usable
-without a paid signup. And expect the noise the taxonomy work already found:
-"analyst" and "associate" are everywhere, so the score should reward domain
-evidence rather than assume the classifier caught everything.
+- This should produce **roster candidates, not silent ingestion**. A resolved
+  board is a suggestion; keep `is_target` and user curation meaningful. A
+  discovery run that quietly triples the queue with employers the user never
+  chose is a worse product, not a better one.
+- Rate-limit and cache aggressively. Probing thousands of slugs from a laptop
+  will get throttled, and every user runs their own copy against the same
+  endpoints — there is no shared server absorbing this.
+- Persist negative results. Re-probing known-dead slugs every scan is the
+  obvious way to make this slow.
+- Report progress. A multi-minute probe with no output reads as a hang to a
+  non-technical user, and every error message is user-facing copy (CLAUDE.md).
 
-### 3. Then, in order
+### 2. USAJOBS — your original next step, unchanged
 
-- Replace or disable the inherited Simplify tech feeds once an econ-specific
-  internship/new-grad source exists. Until then they stay supplemental and
-  filtered, which is the current state — don't remove them without a
-  replacement, or internship scans lose coverage.
-- Add sources for the high-value unscannable paths: **USAJOBS** (federal
-  Economist, GS-0110), **Federal Reserve RA** postings, **NBER**/EconJobMarket
-  pre-docs, and **Workday**-hosted banks and consulting firms. Model the first
-  three on the existing `github_repo` source client — a non-ATS source feeding
-  the same pipeline. Workday is the hard one: it needs following a careers-page
-  redirect to discover the `host|site` coordinate, which is why those 7 roster
-  entries sit at `unknown`. Treat it as its own unit, last.
+A real public API, and the front door for federal Economist (GS-0110), BLS, BEA,
+CBO. Model it on the `github_repo` client: a non-ATS source feeding the same
+normalize/dedup/score pipeline. Your logged plan — adapter contract plus
+fixtures in `backend/app/discovery/sources/`, then pipeline integration — is
+right; just do it after item 1.
+
+### 3. AEA JOE — the highest-signal econ source, via import not crawl
+
+**Job Openings for Economists** (`aeaweb.org/joe/listings`) is *the* economics
+job market: ~1,700 positions filled a year, and the main channel for pre-docs and
+academic-adjacent roles. For an econ-major audience this is more on-target than
+any general board.
+
+**The AEA prohibits scraping or redistributing site content**, but publishes
+current listings as a downloadable XLS. So the integration is: the user downloads
+the file and imports it. That respects the terms, fits local-first, and needs no
+credentials.
+
+This one is **cross-lane**. Yours is the parser and the mapping from JOE rows
+into `RawJob` so it flows through the existing pipeline. The upload endpoint and
+the screen are Claude Code's (`app/routers/`, `frontend/`). Define the `RawJob`
+mapping and say so in your session log; Claude Code will build the intake around
+it.
+
+### 4. Workday tenant resolution
+
+Unblocks the 7 `unknown` roster entries and most banks and consulting firms —
+the highest ceiling for finance roles specifically, and the hardest item here.
+Needs following a careers-page redirect to recover the `host|site` coordinate,
+which cannot be derived from a company name. Treat it as its own unit and take
+it last of these four.
+
+### 5. Only if the above is not enough: keyword-queryable aggregators
+
+Adzuna has a documented API; Google Jobs is reachable via SerpAPI. These are the
+real shape-change — search-driven rather than roster-driven. Held back to last
+because both add an API key to setup, and **nothing requiring a paid signup may
+gate the core loop** (CLAUDE.md). If added, they are an upgrade path, clearly
+marked, with discovery still fully functional without them.
+
+### The thing that gets harder as soon as any of this lands
+
+**Dedup and freshness become the quality bottleneck.** Once the same role
+arrives from three sources, `dedup_hash` is doing work it was not sized for, and
+ghost listings — postings left up for months — start filling the queue. That is
+precisely why jobright ships a dedicated ghost filter. `scan_max_age_days`
+helps but leans on `posted_at`, which aggregators report inconsistently or not
+at all.
+
+Treat this as part of the work, not as follow-up: every source added should come
+with its `posted_at` reliability documented and its dedup behaviour tested
+against a source already in the pipeline. A queue full of duplicates and dead
+postings is a worse outcome than the narrow queue we have now.
 
 ### What Claude Code is doing meanwhile
 
-Usability lane only — PDF résumé upload to replace the LaTeX templates on the
-critical path (needs a migration; `ResumeVersion.latex_source` is `NOT NULL`),
-moving `companies.yaml` and the LLM key into the UI following the Profile page
-pattern, and the one-step install path. **The PDF-upload work will touch how
-resumes are keyed by `JobFamily`** — the same cross-lane trap flagged above. If
-you change `JobFamily` again, say so in your session log before you start.
+Usability lane — PDF résumé upload to get LaTeX off the critical path (needs a
+migration; `ResumeVersion.latex_source` is `NOT NULL`), moving `companies.yaml`
+and the LLM key into the UI on the Profile page pattern, the one-step install
+path, and the JOE import screen once you have defined the mapping in item 3.
 
-### What landed on 2026-09-07
+### Earlier history
 
-Codex completed and pushed the first economics-pivot unit in commit `0e51d4e`
-(`Re-target job taxonomy to economics roles`):
+`0e51d4e` (2026-09-07) re-targeted the role taxonomy: `JobFamily` became
+`finance` / `consulting` / `data_analytics` / `corporate` / `policy_research` /
+`other`, with qualified classification — strong title phrases match directly,
+generic stems (analyst, associate, intern, research assistant) require domain
+evidence from title or description, so engineering, retail, nursing and
+marketing fall through to `other`. `discovery_tech_only` became
+`discovery_econ_only` and now applies to internships too; ATS sweeps were
+restored for internship scans with the inherited GitHub tech feed demoted to
+supplemental and filtered through the econ classifier. Migration
+`a7b8c9d0e1f2`; `frontend/src/api/types.ts` and the five econ resume templates
+were re-cut alongside it.
 
-- Replaced the tech `JobFamily` values with `finance`, `consulting`,
-  `data_analytics`, `corporate`, `policy_research`, and `other`.
-- Added qualified econ-role classification. Strong title phrases match directly;
-  generic titles such as analyst, associate, intern, or research assistant need
-  domain evidence from the title or description. Unrelated engineering, retail,
-  nursing, and marketing roles remain `other`.
-- Replaced `discovery_tech_only` with `discovery_econ_only`. The default filter
-  now applies to internships as well as full-time jobs.
-- Restored ATS sweeps for internship scans. The inherited GitHub internship feed
-  is tech-oriented and is supplemental only; it is filtered through the same
-  econ classifier.
-- Added Alembic migration `a7b8c9d0e1f2`, synchronized
-  `frontend/src/api/types.ts`, updated resume upload defaults and seed logic, and
-  replaced the three tech LaTeX examples with five econ-family examples.
-- Verification passed: 499 supported backend tests, TypeScript typecheck, 23
-  frontend tests, lint with five pre-existing warnings, and migration
-  upgrade/downgrade/upgrade including legacy-value conversion.
+`fb4c01f` (2026-09-08) seeded the econ roster: 18 employers, 11 scannable
+Greenhouse/Ashby boards verified HTTP 200 on 2026-09-07, 7 high-value
+Workday/custom targets left `unknown` so they stay visible until item 4 lands.
 
-Codex also prepared the next roster unit in the working tree, but it is **not
-committed yet** because iCloud repeatedly stalled Git while reading offloaded
-`.git/objects` files:
-
-- `companies.example.yaml` now contains 18 economics-oriented employers: 11
-  directly scannable Greenhouse/Ashby boards and 7 high-value targets awaiting
-  Workday/custom-source support.
-- All 11 configured ATS board ids returned HTTP 200 from their official APIs on
-  2026-09-07, and `backend/tests/test_seed_companies.py` passes (4 tests).
-- The only uncommitted files should be `companies.example.yaml`,
-  `backend/tests/test_seed_companies.py`, and this `AGENTS.md` handoff. Preserve
-  them; do not overwrite them during a pull or cleanup.
-
-Operational note: this repository currently lives under iCloud-synced
-`~/Documents`. Active Git repositories should instead live in a local working
-directory such as `~/Developer`, with GitHub for committed source and Time
-Machine for uncommitted/private state. `Keep Downloaded` reduces iCloud stalls
-but is not a backup.
+Operational note, still true: this repository lives under iCloud-synced
+`~/Documents`, which stalled Git on offloaded `.git/objects` during the
+2026-09-07 session. Active repos belong in a local path such as `~/Developer`.
+Ask Aiden before moving it — `~/Documents/CLAUDE.md` maps `econpilot/` and would
+need updating in the same change.
 
 ## Git
 
@@ -207,7 +233,7 @@ The remote is `origin` → https://github.com/A319K/econpilot (**public**).
 ## Verify before you commit
 
 ```bash
-cd backend && .venv/bin/pytest -m "not latex and not agent"   # 499 passing
+cd backend && .venv/bin/pytest -m "not latex and not agent"   # 506 passing
 cd frontend && npx tsc --noEmit -p tsconfig.app.json && npm run test -- --run && npm run lint
 ```
 
@@ -260,4 +286,4 @@ landed.
 
 ---
 
-*Last updated 2026-09-08.*
+*Last updated 2026-09-09.*
