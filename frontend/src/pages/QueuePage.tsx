@@ -13,14 +13,15 @@ import { useApplications, useQueueJob } from "../hooks/useApplications"
 import { useCompanyMap } from "../hooks/useCompanyMap"
 import { usePrepareJob } from "../hooks/useJobs"
 import { useJobs } from "../hooks/useJobs"
+import { useDebouncedValue } from "../hooks/useDebouncedValue"
 import { useListKeyboardNav } from "../hooks/useListKeyboardNav"
 import { ApiError } from "../api/client"
 import { useMode } from "../lib/mode"
 
 const DEFAULT_FILTERS: QueueFilters = {
   minScore: 0,
-  families: new Set(),
-  source: "all",
+  family: "all",
+  location: "",
   targetsOnly: false,
   entryLevelOnly: true,
   sort: "score",
@@ -46,13 +47,18 @@ export function QueuePage() {
 
   // Entry-level filtering only applies to full-time roles.
   const entryLevelActive = mode === "full_time" && filters.entryLevelOnly
-  const hasClientFilters =
-    filters.search.trim().length > 0 || filters.families.size > 0 || entryLevelActive
+  const hasClientFilters = filters.search.trim().length > 0 || entryLevelActive
+
+  // Location is matched server-side so it searches the whole queue rather than
+  // whichever page happens to be loaded; debounced so typing doesn't refetch
+  // on every keystroke.
+  const debouncedLocation = useDebouncedValue(filters.location.trim())
 
   const jobsQuery = useJobs({
     role_type: mode,
     min_score: filters.minScore || undefined,
-    source: filters.source === "all" ? undefined : filters.source,
+    job_family: filters.family === "all" ? undefined : filters.family,
+    location: debouncedLocation || undefined,
     sort: filters.sort,
     page_size: hasClientFilters ? 200 : 50,
   })
@@ -70,9 +76,6 @@ export function QueuePage() {
   const jobs = useMemo(() => {
     let result = jobsQuery.data ?? []
 
-    if (filters.families.size > 0) {
-      result = result.filter((job) => filters.families.has(job.job_family))
-    }
     if (entryLevelActive) {
       result = result.filter((job) => !SENIOR_TITLE_RE.test(job.title))
     }

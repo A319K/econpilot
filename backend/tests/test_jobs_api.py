@@ -162,6 +162,47 @@ def test_list_jobs_recent_falls_back_to_discovered_at():
     assert titles == ["Policy Analyst fresh", "Policy Analyst stale"]
 
 
+def test_list_jobs_filters_by_location_substring():
+    """ATS location strings are free text, so the filter matches case-insensitively
+    on a substring — "boston" has to find "Boston, MA (Hybrid)"."""
+    company = _make_company(name="Located Co")
+    db = SessionLocal()
+    try:
+        for label, location in (
+            ("boston", "Boston, MA (Hybrid)"),
+            ("nyc", "New York, NY"),
+            ("remote", "Remote - US"),
+            ("nowhere", None),
+        ):
+            db.add(
+                Job(
+                    company_id=company.id,
+                    title=f"Economist {label}",
+                    url=f"https://example.com/located/{label}",
+                    source=JobSource.greenhouse,
+                    role_type=RoleType.full_time,
+                    job_family=JobFamily.policy_research,
+                    location=location,
+                    score=50.0,
+                    dedup_hash=f"located-{label}",
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get("/jobs", params={"location": "boston", "company_id": company.id})
+    assert response.status_code == 200
+    assert [j["title"] for j in response.json()] == ["Economist boston"]
+
+    response = client.get("/jobs", params={"location": "remote", "company_id": company.id})
+    assert [j["title"] for j in response.json()] == ["Economist remote"]
+
+    # An unset location filter must not drop jobs with no location recorded.
+    response = client.get("/jobs", params={"company_id": company.id})
+    assert "Economist nowhere" in [j["title"] for j in response.json()]
+
+
 def test_list_jobs_pagination():
     response = client.get("/jobs", params={"page": 1, "page_size": 1})
     assert response.status_code == 200

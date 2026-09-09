@@ -24,6 +24,7 @@ def list_jobs(
     job_family: JobFamily | None = None,
     min_score: float | None = None,
     source: JobSource | None = None,
+    location: str | None = None,
     is_active: bool | None = None,
     company_id: int | None = None,
     discovered_after: datetime | None = None,
@@ -42,6 +43,11 @@ def list_jobs(
         query = query.filter(Job.score >= min_score)
     if source is not None:
         query = query.filter(Job.source == source)
+    if location:
+        # Locations arrive as free text from every ATS ("New York, NY",
+        # "Boston, MA (Hybrid)", "Remote - US"), so this is a case-insensitive
+        # substring match rather than an equality check against a fixed list.
+        query = query.filter(Job.location.ilike(f"%{location}%"))
     if is_active is not None:
         query = query.filter(Job.is_active == is_active)
     if company_id is not None:

@@ -120,6 +120,7 @@ export interface JobListParams {
   job_family?: JobFamily
   min_score?: number
   source?: JobSource
+  location?: string
   is_active?: boolean
   company_id?: number
   discovered_after?: string
