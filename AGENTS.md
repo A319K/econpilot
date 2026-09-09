@@ -57,152 +57,162 @@ reaching across.
 - **`frontend/src/api/types.ts` is hand-synced with `backend/app/schemas/*`.**
   There is no codegen. An API shape change edits both sides in the same commit.
 
-## Current handoff — 2026-09-09 (Claude Code → Codex)
+## Current handoff — 2026-09-09 evening (Claude Code → Codex)
 
-Your 2026-09-08 run landed both units from the previous handoff — roster
-(`fb4c01f`) and econ scoring (`9ee09ef`, a 100-point score over skill overlap,
-coursework fit, family-qualified experience, preferred family, target employer,
-and recency). You logged the session properly. Nothing is outstanding from it.
+Your three commits are verified and nothing is outstanding from them:
+`158929f` (ATS tenant enumeration), `7fc2ae8` (optional USAJOBS), `6c29f4c`
+(handoff). AEA JOE stays declined — do not build it.
 
-Claude Code shipped one fix in the usability lane on 2026-09-09, `5a434ae`:
-`sort=recent` on `GET /jobs` ordered by `discovered_at`, so every job from a
-single scan shared one timestamp and the queue's age column came out scrambled.
-It now orders by `coalesce(posted_at, discovered_at)` — what the column actually
-renders. Two tests in `backend/tests/test_jobs_api.py`. Suite is 506 passing.
+Claude Code shipped two units in the usability lane today:
 
-**Codex completion update, 2026-09-09.** Item 1 shipped as `158929f` and item 2
-shipped as `7fc2ae8`; both are pushed. Aiden then declined the AEA JOE import,
-so do not build its parser, endpoint, or screen. Workday tenant resolution is
-the next discovery unit.
+- `5a434ae` — `sort=recent` ordered by `discovered_at`, so a whole scan shared
+  one timestamp and the queue's age column looked scrambled. Now
+  `coalesce(posted_at, discovered_at)`, which is what the column renders.
+- `7a9e0b2` — queue filters reworked (see "Filter changes" below). This added
+  a `location` query param to `GET /jobs`; `frontend/src/api/types.ts` was
+  updated in the same commit.
 
-### The problem this handoff is about
+**Aiden has redirected the discovery work.** Workday tenant resolution is *no
+longer the next unit*. Read the new direction before starting anything.
 
-Aiden's assessment on 2026-09-09: discovery is too narrow. Not wrong — narrow.
-The queue does not surface enough for it to be worth opening.
+### The new direction, in Aiden's words
 
-The cause is structural, so adding companies one at a time will not fix it.
-**EconPilot is roster-bound**: it scans only companies present in
-`companies.yaml` *and* carrying a resolved ATS. That is 11 scannable boards
-today, so the ceiling on recall is the roster, and raising the ceiling is linear
-manual work forever.
+> "although it does work, it just isn't what i want it to be. can we try a
+> different approach. can we use things that college students are more likely to
+> use such as simplify, linkedin, githubs, etc."
 
-For contrast, jobright.ai aggregates ~8M listings and ~400k new postings a day
-from career sites and the big boards, refreshed every few minutes, and is
-explicitly a **matching-and-autofill layer over aggregated listings rather than
-a job board**. Recall comes free in that model; precision and ghost-listing
-filtering are the hard parts.
+The read: EconPilot has been reaching employers through the back door — ATS
+board APIs the user has never heard of. Students do not experience the job
+market that way. They experience it as a handful of well-known surfaces. Meeting
+them there matters more than another tenant resolver.
 
-We are not copying that. Two reasons, both binding:
+This reframes recall as a *product* problem, not only a coverage problem.
 
-- **EconPilot is local-first.** It runs on a friend's laptop. It cannot host an
-  8M-row corpus, and it should not try. What it needs is good *recall on econ
-  roles*, not coverage of the labor market.
-- **Scraping LinkedIn/Indeed/Glassdoor is against their terms** and gets
-  IP-blocked quickly. A funded company absorbs that risk; software Aiden hands
-  to friends must not. Official APIs and published files only. If a source's
-  terms prohibit automated collection, do not add a crawler.
+### What is already true, and what it costs
 
-So the goal is to flip discovery from *"companies I have listed"* toward
-*"roles matching my search"*, using sources that permit it.
+**Simplify is already wired.** `github_repo` reads
+`SimplifyJobs/Summer2026-Internships`. It is the tech list, filtered through the
+econ classifier, which is why it contributes little here. The mechanism Aiden is
+asking for exists; it is pointed at the wrong repos.
 
-### 1. Tenant enumeration — complete (`158929f`)
+**The econ-relevant community repos do not publish `listings.json`.** Verified
+2026-09-09: `jobright-ai/2026-Account-Internship` (accounting and finance) ships
+its Daily Job List as a **markdown table in README.md** — company, job title,
+location, work model, date posted — with no JSON or CSV anywhere in the repo.
+`northwesternfintech/2027QuantInternships` is the same shape. Our source client
+deliberately reads structured `listings.json` and not the README.
 
-The largest recall multiplier available on code that already exists.
-`app/discovery/ats_probe.py` already resolves a company name to a
-Greenhouse/Lever/Ashby board by slug. Today it runs over a hand-written roster.
-Point it at a large employer list instead and let it discover boards wholesale:
-econ-consulting directories, asset managers, the Fortune/Forbes rosters, think
-tanks. Board tokens are public and slug-guessable, which is the whole reason the
-probe works.
+So this is **a new parser, not a config change**. That is the main piece of work
+in item 1 and the reason it is not a one-line `.env` edit.
 
-Design notes:
+### 1. A README-table source client, then point it at econ repos
 
-- This should produce **roster candidates, not silent ingestion**. A resolved
-  board is a suggestion; keep `is_target` and user curation meaningful. A
-  discovery run that quietly triples the queue with employers the user never
-  chose is a worse product, not a better one.
-- Rate-limit and cache aggressively. Probing thousands of slugs from a laptop
-  will get throttled, and every user runs their own copy against the same
-  endpoints — there is no shared server absorbing this.
-- Persist negative results. Re-probing known-dead slugs every scan is the
-  obvious way to make this slow.
-- Report progress. A multi-minute probe with no output reads as a hang to a
-  non-technical user, and every error message is user-facing copy (CLAUDE.md).
+Add a source that parses the markdown-table format these repos share, and feed
+it through the existing normalize/dedup/score pipeline like `github_repo`.
 
-### 2. USAJOBS — complete (`7fc2ae8`)
+Repos worth carrying (verify each is live and current before committing — they
+rotate every season, which is why the existing feed config is already
+`.env`-overridable):
 
-A real public API, and the front door for federal Economist (GS-0110), BLS, BEA,
-CBO. Model it on the `github_repo` client: a non-ATS source feeding the same
-normalize/dedup/score pipeline. Your logged plan — adapter contract plus
-fixtures in `backend/app/discovery/sources/`, then pipeline integration — is
-right; just do it after item 1.
+- `jobright-ai/2026-Account-Internship` — accounting and finance
+- the sibling `jobright-ai/*-Internship` repos covering data analyst and
+  business/finance functions
+- `northwesternfintech/2027QuantInternships` — quant
+- the Simplify/CSCareers general lists we already read, kept as-is
 
-### AEA JOE — declined by Aiden, 2026-09-09
+Parsing notes, from looking at the actual tables:
 
-Do not add JOE listings to the job-search feature. No JOE code was implemented
-or committed, so there is nothing to remove.
+- Rows carry **relative or short dates** ("Sep 08"), not the absolute timestamps
+  `listings.json` gives us. `posted_at` reliability is therefore lower, which
+  matters because `sort=recent` and `scan_max_age_days` both depend on it.
+  Document what you can infer and leave `posted_at` null rather than guessing a
+  year — a wrong date is worse than none, since it silently reorders the queue.
+- Company and title arrive as **markdown links**, often with emoji and badge
+  images mixed in. Strip to text before dedup or the hash will differ from the
+  same role arriving via ATS.
+- These lists overlap heavily with each other and with our ATS sweeps. **Dedup
+  is the whole ballgame here**, not an afterthought — see the standing note
+  below.
 
-### 3. Workday tenant resolution — next
+### 2. LinkedIn — the honest version, and it is not a scraper
 
-Unblocks the 7 `unknown` roster entries and most banks and consulting firms —
-the highest ceiling for finance roles specifically, and the hardest item here.
-Needs following a careers-page redirect to recover the `host|site` coordinate,
-which cannot be derived from a company name. Treat it as its own unit and take
-it last of these four.
+There is no legitimate programmatic path. LinkedIn has no public job-search API
+for this use case, and scraping breaches their terms and gets IP-blocked
+quickly. We are not doing it: this is software Aiden hands to friends, running
+on their own laptops and their own IPs.
 
-### 4. Only if the above is not enough: keyword-queryable aggregators
+What we *can* do gives most of the value: **generate pre-filled search links**
+into LinkedIn, Indeed and Handshake from the user's profile and current filters,
+and let them click through. The student stays on the surface they already trust,
+we do the query construction, and nothing is scraped or stored.
 
-Adzuna has a documented API; Google Jobs is reachable via SerpAPI. These are the
-real shape-change — search-driven rather than roster-driven. Held back to last
-because both add an API key to setup, and **nothing requiring a paid signup may
-gate the core loop** (CLAUDE.md). If added, they are an upgrade path, clearly
-marked, with discovery still fully functional without them.
+That is a frontend job, so **Claude Code owns it** — no work for you here beyond
+not building a crawler. Handshake deserves a note: it is the channel most
+college students actually use, but it is per-school and auth-walled, so
+deep-linking is the only option there too.
 
-### The thing that gets harder as soon as any of this lands
+### 3. Workday tenant resolution — still wanted, now after item 1
 
-**Dedup and freshness become the quality bottleneck.** Once the same role
-arrives from three sources, `dedup_hash` is doing work it was not sized for, and
-ghost listings — postings left up for months — start filling the queue. That is
-precisely why jobright ships a dedicated ghost filter. `scan_max_age_days`
-helps but leans on `posted_at`, which aggregators report inconsistently or not
-at all.
+Unchanged in substance and still the highest ceiling for banks and consulting
+firms; it just is not the next thing. Follow the careers-page redirect to
+recover the `host|site` coordinate. Take it once the README-table source is in.
 
-Treat this as part of the work, not as follow-up: every source added should come
-with its `posted_at` reliability documented and its dedup behaviour tested
-against a source already in the pipeline. A queue full of duplicates and dead
-postings is a worse outcome than the narrow queue we have now.
+### Filter changes that touch your lane's assumptions
+
+`7a9e0b2` reworked the queue filter bar, and one change is load-bearing for you:
+
+- **The source filter is gone.** Which ATS a posting came from is internal
+  plumbing, not something a user chooses by. `JobSource` is still on the model,
+  still filterable via the API, and still worth setting correctly — it just is
+  not surfaced. Do not add UI for it.
+- Job family is now a single dropdown with plain-language labels ("data &
+  analytics", "policy & research") rather than a row of raw enum toggles, and it
+  filters server-side via the existing `job_family` param.
+- Location is a new server-side `location` param on `GET /jobs`, matched
+  case-insensitively as a substring because ATS location strings are free text
+  ("Boston, MA (Hybrid)", "Remote - US").
+
+The last one is a request: **whatever a new source writes into `Job.location`
+is now user-visible and user-filterable.** Normalize it to something a person
+would type. A row that stores "US-MA-Boston-Seaport" will not be found by
+someone typing "boston".
+
+### The standing requirement, restated because item 1 makes it urgent
+
+**Dedup and ghost listings decide whether this helps or hurts.** Community
+repos, ATS sweeps and USAJOBS will return the same role, and these lists keep
+dead postings around. `dedup_hash` was sized for one source per job. Every
+source added ships with its `posted_at` reliability documented and its dedup
+behaviour tested against a source already in the pipeline.
+
+A queue full of duplicates and dead postings is a worse outcome than the narrow
+queue we have now — and unlike narrowness, it is the kind of wrong that makes a
+non-technical user stop trusting the tool.
 
 ### What Claude Code is doing meanwhile
 
-Usability lane — PDF résumé upload to get LaTeX off the critical path (needs a
-migration; `ResumeVersion.latex_source` is `NOT NULL`), moving `companies.yaml`
-and the LLM key into the UI on the Profile page pattern, the one-step install
-path. Do not build the previously planned JOE import screen.
+The pre-filled search links in item 2; a review screen for the ATS candidates
+your enumerator writes to `ats_candidates.yaml` (today a user would have to run
+a script and hand-edit YAML, which the audience cannot do); moving the USAJOBS
+credentials out of `.env` and into the UI with a plain-language note on
+requesting the key; and PDF résumé upload to get LaTeX off the critical path.
 
 ### Earlier history
 
-`0e51d4e` (2026-09-07) re-targeted the role taxonomy: `JobFamily` became
-`finance` / `consulting` / `data_analytics` / `corporate` / `policy_research` /
-`other`, with qualified classification — strong title phrases match directly,
-generic stems (analyst, associate, intern, research assistant) require domain
-evidence from title or description, so engineering, retail, nursing and
-marketing fall through to `other`. `discovery_tech_only` became
-`discovery_econ_only` and now applies to internships too; ATS sweeps were
-restored for internship scans with the inherited GitHub tech feed demoted to
-supplemental and filtered through the econ classifier. Migration
-`a7b8c9d0e1f2`; `frontend/src/api/types.ts` and the five econ resume templates
-were re-cut alongside it.
+`0e51d4e` re-targeted the taxonomy (`JobFamily` → finance / consulting /
+data_analytics / corporate / policy_research / other, qualified classification,
+`discovery_tech_only` → `discovery_econ_only`, migration `a7b8c9d0e1f2`).
+`fb4c01f` seeded the 18-employer econ roster (11 scannable, 7 Workday/custom
+left `unknown`). `9ee09ef` retuned scoring into a 100-point deterministic score
+over skill overlap, coursework fit, family-qualified experience, preferred
+family, target employer and recency. `158929f` added tenant enumeration writing
+review candidates to `ats_candidates.yaml`. `7fc2ae8` added optional USAJOBS
+discovery behind `usajobs_api_key` / `usajobs_user_agent`.
 
-`fb4c01f` (2026-09-08) seeded the econ roster: 18 employers, 11 scannable
-Greenhouse/Ashby boards verified HTTP 200 on 2026-09-07, 7 high-value
-Workday/custom targets left `unknown` so they stay visible until Workday tenant
-resolution lands.
-
-Operational note, still true: this repository lives under iCloud-synced
-`~/Documents`, which stalled Git on offloaded `.git/objects` during the
-2026-09-07 session. Active repos belong in a local path such as `~/Developer`.
-Ask Aiden before moving it — `~/Documents/CLAUDE.md` maps `econpilot/` and would
-need updating in the same change.
+Operational note, still true: this repo lives under iCloud-synced `~/Documents`,
+which stalled Git on offloaded `.git/objects` on 2026-09-07. Active repos belong
+in a local path such as `~/Developer`. Ask Aiden first — `~/Documents/CLAUDE.md`
+maps `econpilot/` and would need updating in the same change.
 
 ## Git
 
@@ -222,7 +232,7 @@ The remote is `origin` → https://github.com/A319K/econpilot (**public**).
 ## Verify before you commit
 
 ```bash
-cd backend && .venv/bin/pytest -m "not latex and not agent"   # 506 passing
+cd backend && .venv/bin/pytest -m "not latex and not agent"   # 524 passing
 cd frontend && npx tsc --noEmit -p tsconfig.app.json && npm run test -- --run && npm run lint
 ```
 
