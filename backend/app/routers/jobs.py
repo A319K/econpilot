@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -48,10 +49,15 @@ def list_jobs(
     if discovered_after is not None:
         query = query.filter(Job.discovered_at >= discovered_after)
 
-    # "recent" orders by when we discovered the posting (always set), with score
-    # as the tie-breaker; the default keeps the highest-fit roles on top.
+    # "recent" orders by how old the posting actually is, matching the age
+    # column in the queue (which shows posted_at, falling back to discovered_at).
+    # Ordering by discovered_at alone put a whole scan batch on one timestamp and
+    # left the visible ages scrambled. Score breaks ties.
     if sort == "recent":
-        query = query.order_by(Job.discovered_at.desc(), Job.score.desc())
+        query = query.order_by(
+            func.coalesce(Job.posted_at, Job.discovered_at).desc(),
+            Job.score.desc(),
+        )
     else:
         query = query.order_by(Job.score.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)

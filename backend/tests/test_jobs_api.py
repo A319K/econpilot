@@ -1,10 +1,12 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 
 from app.db import SessionLocal
 from app.discovery.base import RawJob
 from app.main import app
 from app.models.company import AtsType, Company
-from app.models.job import JobFamily, JobSource, RoleType
+from app.models.job import Job, JobFamily, JobSource, RoleType
 
 client = TestClient(app)
 
@@ -89,6 +91,75 @@ def test_list_jobs_sorted_by_score_desc():
     assert response.status_code == 200
     scores = [j["score"] for j in response.json()]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_list_jobs_recent_sorts_by_posted_age():
+    """A single scan gives every job the same discovered_at, so `recent` has to
+    order by posted_at — the date the queue's age column actually shows."""
+    company = _make_company(name="Recency Co")
+    scanned_at = datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc)
+
+    db = SessionLocal()
+    try:
+        for label, posted_days_ago in (("oldest", 30), ("newest", 1), ("middle", 10)):
+            db.add(
+                Job(
+                    company_id=company.id,
+                    title=f"Research Analyst {label}",
+                    url=f"https://example.com/recency/{label}",
+                    source=JobSource.greenhouse,
+                    role_type=RoleType.full_time,
+                    job_family=JobFamily.finance,
+                    posted_at=scanned_at - timedelta(days=posted_days_ago),
+                    discovered_at=scanned_at,
+                    score=50.0,
+                    dedup_hash=f"recency-{label}",
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get("/jobs", params={"sort": "recent", "company_id": company.id})
+    assert response.status_code == 200
+    titles = [j["title"] for j in response.json()]
+    assert titles == [
+        "Research Analyst newest",
+        "Research Analyst middle",
+        "Research Analyst oldest",
+    ]
+
+
+def test_list_jobs_recent_falls_back_to_discovered_at():
+    """Undated postings are common; they order by when we found them."""
+    company = _make_company(name="Undated Co")
+    base = datetime(2026, 9, 8, 12, 0, tzinfo=timezone.utc)
+
+    db = SessionLocal()
+    try:
+        for label, discovered_days_ago in (("stale", 5), ("fresh", 0)):
+            db.add(
+                Job(
+                    company_id=company.id,
+                    title=f"Policy Analyst {label}",
+                    url=f"https://example.com/undated/{label}",
+                    source=JobSource.greenhouse,
+                    role_type=RoleType.full_time,
+                    job_family=JobFamily.policy_research,
+                    posted_at=None,
+                    discovered_at=base - timedelta(days=discovered_days_ago),
+                    score=50.0,
+                    dedup_hash=f"undated-{label}",
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get("/jobs", params={"sort": "recent", "company_id": company.id})
+    assert response.status_code == 200
+    titles = [j["title"] for j in response.json()]
+    assert titles == ["Policy Analyst fresh", "Policy Analyst stale"]
 
 
 def test_list_jobs_pagination():
