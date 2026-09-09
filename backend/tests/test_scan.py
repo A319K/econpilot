@@ -40,6 +40,7 @@ async def test_run_scan_skips_companies_without_known_ats_type(monkeypatch):
 
     session = _session()
     session.add(Company(name="Unknown Co", ats_type=AtsType.unknown))
+    session.add(Company(name="Custom Site", ats_type=AtsType.other))
     session.commit()
 
     _mock_fetch(monkeypatch, GreenhouseSource, [])
@@ -308,6 +309,106 @@ async def test_run_scan_includes_github_repo_jobs(monkeypatch):
     job = session.query(Job).one()
     assert job.company.name == "New Startup"
     assert job.company.ats_type == AtsType.unknown
+
+
+@pytest.mark.asyncio
+async def test_run_scan_ingests_configured_usajobs_economists(monkeypatch):
+    from app.config import get_settings
+    from app.discovery.sources.github_repo import GithubRepoSource
+    from app.discovery.sources.usajobs import UsaJobsSource
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "usajobs_api_key", "test-key")
+    monkeypatch.setattr(settings, "usajobs_user_agent", "student@example.com")
+    monkeypatch.setattr(GithubRepoSource, "fetch", lambda self, company: _empty())
+
+    async def fetch_usajobs(self, company):
+        assert self.date_posted_days == settings.scan_max_age_days
+        return [
+            RawJob(
+                title="Economist",
+                url="https://www.usajobs.gov/job/810000001",
+                location="Washington, District of Columbia",
+                description="Analyze labor market data.",
+                source=JobSource.usajobs,
+                company_name="Bureau of Labor Statistics",
+            )
+        ]
+
+    monkeypatch.setattr(UsaJobsSource, "fetch", fetch_usajobs)
+    session = _session()
+
+    report = await run_scan(session, role_type="full_time")
+
+    assert report.new == 1
+    job = session.query(Job).one()
+    assert job.source == JobSource.usajobs
+    assert job.role_type == RoleType.full_time
+    assert job.url.startswith("https://www.usajobs.gov/")
+    assert job.company.ats_type == AtsType.other
+
+
+@pytest.mark.asyncio
+async def test_successful_usajobs_snapshot_deactivates_missing_jobs(monkeypatch):
+    from app.config import get_settings
+    from app.discovery.sources.github_repo import GithubRepoSource
+    from app.discovery.sources.usajobs import UsaJobsSource
+    from app.discovery.pipeline import ingest_raw_job
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "usajobs_api_key", "test-key")
+    monkeypatch.setattr(settings, "usajobs_user_agent", "student@example.com")
+    monkeypatch.setattr(GithubRepoSource, "fetch", lambda self, company: _empty())
+    monkeypatch.setattr(UsaJobsSource, "fetch", lambda self, company: _empty())
+    session = _session()
+    old, _ = ingest_raw_job(
+        session,
+        RawJob(
+            title="Economist",
+            url="https://www.usajobs.gov/job/old",
+            source=JobSource.usajobs,
+            company_name="Bureau of Labor Statistics",
+        ),
+    )
+    session.commit()
+
+    await run_scan(session, role_type="full_time")
+
+    assert old.is_active is False
+
+
+@pytest.mark.asyncio
+async def test_usajobs_error_never_deactivates_existing_jobs(monkeypatch):
+    from app.config import get_settings
+    from app.discovery.pipeline import ingest_raw_job
+    from app.discovery.sources.github_repo import GithubRepoSource
+    from app.discovery.sources.usajobs import UsaJobsSource
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "usajobs_api_key", "test-key")
+    monkeypatch.setattr(settings, "usajobs_user_agent", "student@example.com")
+    monkeypatch.setattr(GithubRepoSource, "fetch", lambda self, company: _empty())
+
+    async def fail(self, company):
+        raise SourceError("temporarily unavailable")
+
+    monkeypatch.setattr(UsaJobsSource, "fetch", fail)
+    session = _session()
+    old, _ = ingest_raw_job(
+        session,
+        RawJob(
+            title="Economist",
+            url="https://www.usajobs.gov/job/old",
+            source=JobSource.usajobs,
+            company_name="Bureau of Labor Statistics",
+        ),
+    )
+    session.commit()
+
+    report = await run_scan(session, role_type="full_time")
+
+    assert old.is_active is True
+    assert report.errors == ["USAJOBS: temporarily unavailable"]
 
 
 @pytest.mark.asyncio

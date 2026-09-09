@@ -13,6 +13,7 @@ class JobSource(str, enum.Enum):
     lever = "lever"
     ashby = "ashby"
     workday = "workday"
+    usajobs = "usajobs"
     github_repo = "github_repo"
     github_newgrad = "github_newgrad"
     manual = "manual"

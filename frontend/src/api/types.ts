@@ -9,6 +9,7 @@ export const JOB_SOURCES = [
   "lever",
   "ashby",
   "workday",
+  "usajobs",
   "github_repo",
   "github_newgrad",
   "manual",

@@ -148,13 +148,19 @@ def ingest_raw_job(
     company = known_company or get_or_create_company(db, raw.company_name)
     # Turn a discovered listing into a recurring source: if we don't yet know
     # this company's ATS, derive it (and its board id) from the application URL.
-    maybe_resolve_company_ats(company, raw.url)
+    if raw.source == JobSource.usajobs and company.ats_type == AtsType.unknown:
+        # Federal agencies are discovered through their official aggregate
+        # source, not a company ATS. Marking them ``other`` prevents pointless
+        # Greenhouse/Lever/Ashby slug probes on every re-probe cycle.
+        company.ats_type = AtsType.other
+    else:
+        maybe_resolve_company_ats(company, raw.url)
 
     if role_type_override is not None:
         role_type = role_type_override
     elif raw.source == JobSource.github_repo:
         role_type = RoleType.internship
-    elif raw.source == JobSource.github_newgrad:
+    elif raw.source in (JobSource.github_newgrad, JobSource.usajobs):
         role_type = RoleType.full_time
     else:
         role_type = classify_role_type(raw.title)
@@ -196,6 +202,10 @@ def ingest_raw_job(
         existing.description = existing.description or raw.description
         existing.location = existing.location or raw.location
         existing.posted_at = existing.posted_at or raw.posted_at
+
+    # A listing seen again after disappearing from an authoritative source is
+    # active again, regardless of whether this ingest created or merged it.
+    existing.is_active = True
 
     db.flush()
     return existing, False

@@ -19,6 +19,7 @@ from app.discovery.sources.ashby import AshbySource
 from app.discovery.sources.github_repo import GithubNewGradSource, GithubRepoSource
 from app.discovery.sources.greenhouse import GreenhouseSource
 from app.discovery.sources.lever import LeverSource
+from app.discovery.sources.usajobs import UsaJobsSource
 from app.models.company import AtsType, Company
 from app.models.job import Job, JobFamily, JobSource, RoleType
 from app.profile import get_profile
@@ -64,6 +65,11 @@ def _classify_raw_role_type(raw: RawJob) -> RoleType:
     if raw.source == JobSource.github_repo:
         return RoleType.internship
     if raw.source == JobSource.github_newgrad:
+        return RoleType.full_time
+    if raw.source == JobSource.usajobs:
+        # Series 0110 is the federal Economist occupation. Student-trainee
+        # announcements use a different occupational series and are not part
+        # of this source query.
         return RoleType.full_time
     return classify_role_type(raw.title)
 
@@ -158,7 +164,7 @@ async def run_scan(
 
     companies: list[Company] = []
     if scan_ats:
-        query = db.query(Company).filter(Company.ats_type != AtsType.unknown)
+        query = db.query(Company).filter(Company.ats_type.in_(tuple(_ATS_SOURCE_MAP)))
         if targets_only:
             query = query.filter(Company.is_target.is_(True))
         companies = query.all()
@@ -196,6 +202,64 @@ async def run_scan(
             else:
                 report.duplicates += 1
         report.seen_job_ids_by_company[company.id] = seen_ids
+
+    # Official federal Economist listings. USAJOBS requires a free API key and
+    # its registration email, so this source activates only when configured and
+    # never gates the otherwise keyless discovery loop.
+    if role_type in ("all", "full_time"):
+        has_key = bool(settings.usajobs_api_key)
+        has_user_agent = bool(settings.usajobs_user_agent)
+        usajobs_succeeded = False
+        usajobs_jobs: list[RawJob] = []
+        if has_key and has_user_agent:
+            try:
+                usajobs_jobs = await UsaJobsSource(
+                    date_posted_days=effective_max_age
+                ).fetch(None)
+                usajobs_succeeded = True
+            except SourceError as exc:
+                report.errors.append(f"USAJOBS: {exc}")
+        elif has_key or has_user_agent:
+            report.errors.append(
+                "USAJOBS: add both the API key and the email used to request it, then try again."
+            )
+
+        seen_usajobs_ids: list[int] = []
+        for raw in usajobs_jobs:
+            report.jobs_found += 1
+            known_company = find_company(db, raw.company_name)
+            if targets_only and (known_company is None or not known_company.is_target):
+                continue
+            if settings.discovery_econ_only and _is_econ_noise(raw):
+                report.filtered += 1
+                continue
+            if not _is_fresh(raw, cutoff):
+                report.stale += 1
+                continue
+
+            job, created = ingest_raw_job(db, raw, known_company=known_company)
+            job.is_active = True
+            _rescore(db, job, job.company, profile)
+            seen_usajobs_ids.append(job.id)
+            if created:
+                report.new += 1
+                report.new_job_ids.append(job.id)
+            else:
+                report.duplicates += 1
+
+        # A successful Search response is an authoritative snapshot of current
+        # series-0110 jobs in the configured age window. Jobs absent from that
+        # snapshot are no longer queue candidates; never infer this on errors.
+        if usajobs_succeeded:
+            stale_query = db.query(Job).filter(
+                Job.source == JobSource.usajobs,
+                Job.is_active.is_(True),
+                Job.id.notin_(seen_usajobs_ids),
+            )
+            if targets_only:
+                stale_query = stale_query.join(Company).filter(Company.is_target.is_(True))
+            for stale_job in stale_query.all():
+                stale_job.is_active = False
 
     if role_type in ("all", "internship"):
         github_client = GithubRepoSource()

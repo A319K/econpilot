@@ -132,6 +132,8 @@ SOURCE_RANK: dict[str, int] = {
     "lever": 2,
     "greenhouse": 2,
     "workday": 2,
+    # Official first-party federal listing; wins over mirrors during dedup.
+    "usajobs": 3,
 }
 
 # --- Phase 5 application agent (see app/agent/) ---------------------------
@@ -287,6 +289,12 @@ class Settings(BaseSettings):
     github_newgrad_feeds: list[str] = [
         "SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json",
     ]
+
+    # Discovery: official USAJOBS Search API. The key is free but requires an
+    # individual request to USAJOBS, so this remains an optional enhancement;
+    # the keyless ATS and GitHub discovery loop works when both values are blank.
+    usajobs_api_key: str = ""
+    usajobs_user_agent: str = ""
 
     # Discovery: scoring
     preferred_job_families: list[str] = ["finance", "consulting", "policy_research"]

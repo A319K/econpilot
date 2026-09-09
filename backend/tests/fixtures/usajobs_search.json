@@ -1,0 +1,52 @@
+{
+  "LanguageCode": "EN",
+  "SearchResult": {
+    "SearchResultCount": 2,
+    "SearchResultCountAll": 2,
+    "SearchResultItems": [
+      {
+        "MatchedObjectId": "810000001",
+        "MatchedObjectDescriptor": {
+          "PositionID": "BLS-26-0110-001",
+          "PositionTitle": "Economist",
+          "PositionURI": "https://www.usajobs.gov/job/810000001",
+          "ApplyURI": ["https://www.usajobs.gov/job/810000001/apply"],
+          "PositionLocationDisplay": "Washington, District of Columbia",
+          "OrganizationName": "Bureau of Labor Statistics",
+          "DepartmentName": "Department of Labor",
+          "JobCategory": [{"Name": "Economist", "Code": "0110"}],
+          "QualificationSummary": "Applicants need economics coursework.",
+          "PublicationStartDate": "2026-09-08T00:00:00Z",
+          "ApplicationCloseDate": "2026-09-20T23:59:59Z",
+          "UserArea": {
+            "Details": {
+              "JobSummary": "Measure labor market activity.",
+              "MajorDuties": "Analyze employment and price data.",
+              "Education": "A degree in economics or equivalent coursework.",
+              "Requirements": "U.S. citizenship is required."
+            }
+          }
+        }
+      },
+      {
+        "MatchedObjectId": "810000002",
+        "MatchedObjectDescriptor": {
+          "PositionTitle": "Economist",
+          "PositionURI": "https://www.usajobs.gov/job/810000002",
+          "PositionLocationDisplay": "Suitland, Maryland",
+          "OrganizationName": "Bureau of Economic Analysis",
+          "PublicationStartDate": "not-a-date",
+          "UserArea": {"Details": {"JobSummary": "Produce national economic accounts."}}
+        }
+      },
+      {
+        "MatchedObjectId": "missing-url",
+        "MatchedObjectDescriptor": {
+          "PositionTitle": "Economist",
+          "OrganizationName": "Department of the Treasury"
+        }
+      }
+    ],
+    "UserArea": {"NumberOfPages": "1", "IsRadialSearch": false}
+  }
+}

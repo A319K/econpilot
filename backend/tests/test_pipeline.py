@@ -220,6 +220,37 @@ def test_ingest_raw_job_lower_ranked_source_merges_missing_fields_without_replac
     assert job2.description == "Description only available from GitHub listing"
 
 
+def test_official_usajobs_listing_wins_dedup_against_aggregator():
+    session = _session()
+    mirror = RawJob(
+        title="Economist",
+        url="https://example.com/mirror/810000001",
+        location="Washington, District of Columbia",
+        source=JobSource.github_newgrad,
+        company_name="Bureau of Labor Statistics",
+    )
+    job, created = ingest_raw_job(session, mirror)
+    session.commit()
+    assert created is True
+
+    official = RawJob(
+        title="Economist",
+        url="https://www.usajobs.gov/job/810000001",
+        location="Washington, District of Columbia",
+        description="Official federal announcement",
+        source=JobSource.usajobs,
+        company_name="Bureau of Labor Statistics",
+    )
+    merged, created = ingest_raw_job(session, official)
+    session.commit()
+
+    assert created is False
+    assert merged.id == job.id
+    assert merged.source == JobSource.usajobs
+    assert merged.url == official.url
+    assert merged.description == "Official federal announcement"
+
+
 def test_ingest_raw_job_reuses_existing_company_case_insensitive():
     session = _session()
     company = Company(name="Acme Corp")

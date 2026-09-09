@@ -16,6 +16,8 @@ os.environ.setdefault("DATABASE_URL", f"sqlite:///{_tmp_db.name}")
 # Tests that need other values monkeypatch them and clear get_settings' cache.
 os.environ["NOTIFIER"] = "none"
 os.environ["WATCHER_ENABLED"] = "false"
+os.environ["USAJOBS_API_KEY"] = ""
+os.environ["USAJOBS_USER_AGENT"] = ""
 
 from app.db import Base, engine  # noqa: E402
 from app import models  # noqa: E402,F401
