@@ -10,6 +10,8 @@ companies.yaml
 # Runtime artifacts
 browser_contexts/
 output/
+.ats_probe_cache.json
+ats_candidates.yaml
 
 # Python
 __pycache__/

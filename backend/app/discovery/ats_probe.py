@@ -7,8 +7,8 @@ therefore silently skipped by every scan.
 
 This module resolves those companies *actively*: it derives candidate org slugs
 from the company name and probes the keyless Greenhouse/Lever/Ashby list APIs
-(the same endpoints the sources fetch from). A slug that returns a non-empty
-board is accepted as that company's ATS coordinate.
+(the same endpoints the sources fetch from). A slug that returns a valid board
+payload is accepted even when it currently has no open jobs.
 
 Workday is deliberately out of scope: its coordinate is an opaque tenant host
 plus site that cannot be derived from a company name, so those stay unknown.
@@ -38,6 +38,10 @@ _SUFFIX_RE = re.compile(
 )
 
 
+class ProbeIncompleteError(RuntimeError):
+    """A board lookup could not distinguish a miss from a transient failure."""
+
+
 def slug_candidates(name: str) -> list[str]:
     """Ordered, de-duplicated slug guesses for a company name, most-specific
     first. Emoji/punctuation are stripped; a suffix-trimmed variant is added so
@@ -63,28 +67,43 @@ def slug_candidates(name: str) -> list[str]:
 
 
 async def _hit(client: httpx.AsyncClient, slug: str) -> tuple[AtsType, str] | None:
-    """Return (ats_type, slug) if `slug` names a real, non-empty board on any of
-    the keyless ATSes we support, else None."""
+    """Return (ats_type, slug) if ``slug`` names a valid public ATS board."""
+    incomplete: list[str] = []
     try:
         r = await client.get(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs")
-        if r.status_code == 200 and (r.json().get("jobs")):
-            return AtsType.greenhouse, slug
-    except (httpx.HTTPError, ValueError):
-        pass
+        if r.status_code == 200:
+            body = r.json()
+            if isinstance(body, dict) and isinstance(body.get("jobs"), list):
+                return AtsType.greenhouse, slug
+            incomplete.append("Greenhouse returned an unexpected response")
+        if r.status_code not in (200, 404):
+            incomplete.append(f"Greenhouse returned HTTP {r.status_code}")
+    except (httpx.HTTPError, ValueError) as exc:
+        incomplete.append(f"Greenhouse: {exc}")
     try:
         r = await client.get(f"https://api.lever.co/v0/postings/{slug}", params={"mode": "json"})
         if r.status_code == 200:
             body = r.json()
-            if isinstance(body, list) and body:
+            if isinstance(body, list):
                 return AtsType.lever, slug
-    except (httpx.HTTPError, ValueError):
-        pass
+            incomplete.append("Lever returned an unexpected response")
+        if r.status_code not in (200, 404):
+            incomplete.append(f"Lever returned HTTP {r.status_code}")
+    except (httpx.HTTPError, ValueError) as exc:
+        incomplete.append(f"Lever: {exc}")
     try:
         r = await client.get(f"https://api.ashbyhq.com/posting-api/job-board/{slug}")
-        if r.status_code == 200 and (r.json().get("jobs")):
-            return AtsType.ashby, slug
-    except (httpx.HTTPError, ValueError):
-        pass
+        if r.status_code == 200:
+            body = r.json()
+            if isinstance(body, dict) and isinstance(body.get("jobs"), list):
+                return AtsType.ashby, slug
+            incomplete.append("Ashby returned an unexpected response")
+        if r.status_code not in (200, 404):
+            incomplete.append(f"Ashby returned HTTP {r.status_code}")
+    except (httpx.HTTPError, ValueError) as exc:
+        incomplete.append(f"Ashby: {exc}")
+    if incomplete:
+        raise ProbeIncompleteError("; ".join(incomplete))
     return None
 
 
@@ -92,10 +111,17 @@ async def probe_company_ats(
     client: httpx.AsyncClient, name: str
 ) -> tuple[AtsType, str] | None:
     """Best-effort (ats_type, board_id) for a company name, or None."""
+    incomplete: list[str] = []
     for slug in slug_candidates(name):
-        found = await _hit(client, slug)
+        try:
+            found = await _hit(client, slug)
+        except ProbeIncompleteError as exc:
+            incomplete.append(f"{slug}: {exc}")
+            continue
         if found:
             return found
+    if incomplete:
+        raise ProbeIncompleteError(" | ".join(incomplete))
     return None
 
 
@@ -126,7 +152,12 @@ async def resolve_unknown_companies(
     probed company gets `ats_probed_at` stamped (hit or miss) so scans don't
     re-probe it until the reprobe window elapses."""
     companies = _companies_to_probe(db, reprobe_after_days, limit)
-    summary: dict[str, int | list[str]] = {"probed": 0, "resolved": 0, "resolved_names": []}
+    summary: dict[str, int | list[str]] = {
+        "probed": 0,
+        "resolved": 0,
+        "resolved_names": [],
+        "errors": [],
+    }
     if not companies:
         return summary
 
@@ -136,7 +167,10 @@ async def resolve_unknown_companies(
     async def worker(client: httpx.AsyncClient, company: Company):
         async with semaphore:
             await asyncio.sleep(random.uniform(0, 0.25))  # jitter: don't burst the APIs
-            return company, await probe_company_ats(client, company.name)
+            try:
+                return company, await probe_company_ats(client, company.name), None
+            except ProbeIncompleteError as exc:
+                return company, None, str(exc)
 
     async with httpx.AsyncClient(
         timeout=_PROBE_TIMEOUT_SECONDS, headers={"User-Agent": _USER_AGENT}
@@ -144,7 +178,13 @@ async def resolve_unknown_companies(
         results = await asyncio.gather(*[worker(client, c) for c in companies])
 
     resolved_names: list[str] = []
-    for company, found in results:
+    errors: list[str] = []
+    for company, found, error in results:
+        if error is not None:
+            errors.append(
+                f"{company.name}: could not finish checking job boards; will retry later"
+            )
+            continue
         company.ats_probed_at = now
         summary["probed"] = int(summary["probed"]) + 1
         if found is None:
@@ -157,4 +197,5 @@ async def resolve_unknown_companies(
 
     db.commit()
     summary["resolved_names"] = resolved_names
+    summary["errors"] = errors
     return summary

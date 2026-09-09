@@ -38,6 +38,8 @@ async def main() -> None:
     print(f"resolved: {summary['resolved']}")
     for line in summary["resolved_names"]:
         print(f"  + {line}")
+    for line in summary["errors"]:
+        print(f"  ! {line}")
 
 
 if __name__ == "__main__":
