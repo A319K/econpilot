@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import type { Job } from "../api/types"
 import { FilterBar, type QueueFilters } from "../components/queue/FilterBar"
+import { ExternalSearchLinks } from "../components/queue/ExternalSearchLinks"
 import { PrepareLogPanel } from "../components/queue/PrepareLogPanel"
 import { QueueTable } from "../components/queue/QueueTable"
 import { ScanPanel } from "../components/queue/ScanPanel"
@@ -131,6 +132,12 @@ export function QueuePage() {
       </header>
 
       <FilterBar filters={filters} onChange={setFilters} searchInputRef={searchInputRef} mode={mode} />
+      <ExternalSearchLinks
+        family={filters.family}
+        location={filters.location}
+        roleType={mode}
+        search={filters.search}
+      />
 
       {preparingJob && (
         <div className="border-b border-(--color-border) px-4 py-2">
