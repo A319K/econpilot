@@ -24,9 +24,12 @@ and some frontend copy.
 
 So the work here is **re-targeting, not rewriting.** When you touch this repo,
 assume the goal is econ/finance roles, and treat any remaining tech-specific
-behavior as a thing to change (see "The pivot" below), not a thing to preserve.
-At the time of the fork the codebase still behaves tech-focused until that list
-is worked through.
+behavior as a thing to change, not a thing to preserve.
+
+**The core re-targeting is done** (taxonomy, roster, scoring — see "Where things
+stand" below). The open problem is no longer that EconPilot finds tech roles; it
+is that it does not find *enough* roles, and that several shipped capabilities
+are only reachable by someone willing to run a script and edit YAML.
 
 ## Who this is for — and why that constrains every design choice
 
@@ -177,49 +180,107 @@ session.
     `full_time`; its value **is** the API `role_type`. **This internship/full_time
     split stays** — it's orthogonal to the tech→econ pivot.
 
-## The pivot: tech → finance/econ (the actual work)
+## Where things stand — 2026-09-10
 
-These are the tech-shaped pieces to re-target. A fresh EconPilot still finds and
-scores SWE roles until they're changed. Rough priority order:
+`~/Documents/.agent/projects/econpilot.md` is the rolling truth; read it at
+session start. This section is the durable shape of the work, not a status feed.
 
-1. **Role taxonomy — `backend/app/config.py`.** The `discovery_tech_only` flag and
-   the tech title/keyword logic decide what counts as a relevant posting. Econ
-   roles do **not** cluster around a few clean title stems the way SWE does — they
-   scatter across many functions and titles that often never say "economics."
-   Re-target the keywords to econ role families:
-   - **Finance/investment** — investment banking / summer analyst, sales & trading,
-     equity & credit research, asset management, corporate finance / FP&A, risk.
-   - **Consulting** — management/business analyst, and specifically **economic
-     consulting** (NERA, Cornerstone, Analysis Group, Charles River, Brattle).
-   - **Data/analytics** — data analyst, business analyst, BI, quant, pricing.
-   - **Tech-adjacent econ** — product/ops analyst, and true **Economist** roles
-     (Amazon/Uber/Airbnb-style).
-   - **Policy & central banking** — Federal Reserve **Research Assistant** (RA),
-     Treasury/CBO/BLS/BEA, think tanks (Brookings, RAND, Urban), policy analyst.
-   - **Academic pipeline** — **pre-doctoral** research assistant (pre-doc), NBER.
+**The econ pivot is done.** `JobFamily` is `finance` / `consulting` /
+`data_analytics` / `corporate` / `policy_research` / `other`, with qualified
+classification — strong title phrases match directly, while generic stems
+(analyst, associate, intern, research assistant) need domain evidence from the
+title or description, so engineering, retail and marketing fall through to
+`other`. `discovery_econ_only` (formerly `discovery_tech_only`) applies to
+internships as well as full-time. The roster is 18 econ employers. Scoring is a
+100-point deterministic score over skill overlap, coursework fit,
+family-qualified experience, preferred family, target employer and recency, and
+it still works with no LLM key. Resume templates are cut along the econ families.
 
-   Expect noisy matching: "analyst"/"associate" appear everywhere, so match on
-   stems (`analyst`, `associate`, `economist`, `research assistant`, `consultant`)
-   qualified by domain words (`financial`, `economic`, `data`, `business`, `quant`,
-   `policy`, `risk`, `investment`) and filter aggressively.
+**Discovery recall is the live problem.** Aiden, 2026-09-09: *"although it does
+work, it just isn't what i want it to be."* Two distinct causes, and it is worth
+keeping them apart:
 
-2. **Seed companies — `companies.example.yaml` (+ `companies.yaml`, gitignored).**
-   Replace the tech company set with econ/finance employers: banks, consulting and
-   economic-consulting firms, asset managers, think tanks, the Fed. Many use the
-   **same ATS backends** (Greenhouse/Lever/Ashby/Workday) already supported, so the
-   discovery plumbing transfers — only the roster changes.
+1. **EconPilot reaches employers through the back door.** It queries ATS board
+   APIs students have never heard of. Students experience the job market as
+   Simplify, LinkedIn, Handshake and GitHub lists. Partly answered by handing
+   the current search off to those sites (below), but EconPilot's own queue is
+   only as wide as the boards it can read.
+2. **Roster-bound recall.** Only companies in `companies.yaml` with a resolved
+   ATS get scanned. Tenant enumeration (`backend/scripts/enumerate_ats_tenants.py`)
+   raises the ceiling, but its output is unreachable — see the next section.
 
-3. **Scoring — `app/discovery/scoring.py`.** Fit weights are tuned for SWE
-   signals; re-tune for econ (relevant coursework, finance/analytics keywords,
-   target-role match) instead of software stack.
+### The recurring failure mode: shipped but Aiden-only
 
-4. **Frontend copy — labels/wording** in the queue and headers that assume tech
-   roles. Keep the `internship`/`full_time` mode toggle; change the vocabulary.
+This is the thing to watch for in this repo. Three capabilities are built,
+tested and working, and none of them can be used by the person EconPilot is for:
 
-5. **(Later) new source clients** for flagship econ paths that aren't on standard
-   ATS: **USAJOBS** (federal Economist, GS-0110), **NBER**/EconJobMarket for
-   pre-docs, Fed RA postings. Model these on the existing `github_repo` source
-   client (a non-ATS source that feeds the same pipeline).
+- **ATS candidates.** The enumerator writes `ats_candidates.yaml`. Acting on it
+  means running a script and hand-merging YAML into `companies.yaml`.
+- **USAJOBS discovery.** Inert unless `usajobs_api_key` and `usajobs_user_agent`
+  are set in `backend/.env`, and it fails silent when they are not.
+- **Base resumes.** Still LaTeX (`backend/templates/resumes/*.tex`, `tectonic`).
+
+A feature in this state is **not shipped**. When the pivot lane lands a
+capability, the usability lane's job is to give it a screen — that pairing is
+the whole reason the lanes exist. The Profile page is the reference pattern:
+file stays the storage, screen becomes the interface, and the API reports when a
+config is still un-personalized (`is_placeholder`).
+
+### Next steps — usability lane (Claude Code)
+
+In order. Each is a commit-and-push unit.
+
+1. **ATS candidate review screen.** `GET /companies/candidates` reads
+   `ats_candidates.yaml`; a screen lists each discovered board with its employer
+   name and lets the user accept or reject it, writing accepted rows into
+   `companies.yaml` the way `PUT /profile` rewrites `profile.yaml`. Run the
+   enumeration from the app with visible progress — a multi-minute silent probe
+   reads as a hang. This unblocks the single largest recall win already built.
+2. **USAJOBS credentials in the UI**, with a plain-language note on requesting
+   the free key, and a visible state when discovery is running without it
+   instead of quietly returning nothing.
+3. **PDF résumé upload**, retiring LaTeX from the critical path. Users tag 2-3
+   finished PDFs with a role family, matching the pre-built-resume design.
+   Needs a migration: `ResumeVersion.latex_source` is `NOT NULL`.
+4. **`companies.yaml` and the LLM key into the UI**, completing the move of
+   every personalizable config off the filesystem.
+
+### Next steps — pivot lane (Codex)
+
+Detailed in `AGENTS.md`, which is Codex's entry point and carries the live
+handoff. Summary, in order: a **README-table source client** (the econ community
+repos publish markdown tables, not `listings.json` — verified 2026-09-09, so
+this is a parser, not config) pointed at the finance/accounting/quant lists;
+then **Workday tenant resolution** to unblock the banks and consulting firms
+sitting at `unknown` in the roster.
+
+### Standing constraint: dedup and ghost listings
+
+Every source added multiplies the chance the same role arrives twice, and these
+lists keep dead postings around. `dedup_hash` was sized for one source per job.
+Each new source ships with its `posted_at` reliability documented and its dedup
+behaviour tested against a source already in the pipeline. **A queue full of
+duplicates and dead postings is worse than the narrow queue we have now** — and
+unlike narrowness, it is the kind of wrong that makes a non-technical user stop
+trusting the tool.
+
+### Settled: how EconPilot reaches LinkedIn, Indeed and Handshake
+
+**By building the query and handing off, never by scraping.** None of them
+exposes a job-search API we may call; scraping breaches their terms and gets the
+user's own IP blocked, and EconPilot runs on the student's laptop, so they would
+eat that block. `frontend/src/lib/jobSearchLinks.ts` turns the queue's field,
+location, mode and search box into a pre-filled LinkedIn or Indeed search,
+falling back to the profile city when the location box is empty.
+
+Two details worth preserving if that file is touched: family names are
+translated into words a posting would actually use (`policy_research` →
+"economic policy research"), because searching a site for our enum name returns
+nothing. And **Handshake links to its search page unfiltered on purpose** — it
+is per-school, behind a login, and its filter params are numeric ids that differ
+between schools, so no link we could build would filter correctly for everyone.
+The hover text says so. An honest plain link beats params that silently do
+nothing.
 
 ## Running the app
 
@@ -261,8 +322,9 @@ cd ../frontend && npm install
 - **Keep `frontend/src/api/types.ts` in sync with `backend/app/schemas/*`** — there
   is no codegen. Changing an API shape means editing both.
 - Discovery is **freshness-bounded** (`scan_max_age_days`, default 21). It is also
-  still **tech-focused** via `discovery_tech_only` in `app/config.py` — that is the
-  legacy default to re-target for econ (see "The pivot", #1), not a setting to keep.
+  scoped to econ roles by `discovery_econ_only` in `app/config.py`, which applies
+  to internships as well as full-time. Set it false to ingest everything for
+  manual review.
 - Only companies with a **known ATS** are scanned; `unknown` ones are skipped.
   Workday tenants and custom career sites can't be resolved from a name alone and
   remain unscannable — resolving them needs following the careers-page redirect to

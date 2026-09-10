@@ -6,6 +6,11 @@ same files in the same hour.
 
 ## Read CLAUDE.md first
 
+`CLAUDE.md` gained a **"Where things stand"** section on 2026-09-10 carrying the
+current state of the pivot, the two causes of the recall problem, the
+shipped-but-Aiden-only failure mode, and both lanes' next steps. Read it before
+this file's handoff — the handoff assumes it.
+
 `CLAUDE.md` is the shared authority for this project: what EconPilot is, the
 architecture, how to run it, the tech→econ pivot, and the settled scope
 decisions. **It is not Claude-only — read it, follow it, and treat it as
